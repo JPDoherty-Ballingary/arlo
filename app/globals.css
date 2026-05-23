@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
 }
 
 @theme inline {
@@ -12,15 +12,58 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes arlo-ticker {
+  0%   { transform: translateY(100%); opacity: 0; }
+  10%  { transform: translateY(0);    opacity: 1; }
+  85%  { transform: translateY(0);    opacity: 1; }
+  100% { transform: translateY(-100%); opacity: 0; }
+}
+
+.btn-green {
+  background: #22d45f;
+  color: #000;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-green:hover {
+  background: #2aff70;
+  box-shadow: 0 0 15px rgba(34, 212, 95, 0.35);
+}
+
+.btn-green-outline {
+  border: 1px solid #22d45f;
+  color: #22d45f;
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-green-outline:hover {
+  background: #22d45f;
+  color: #000;
+  box-shadow: 0 0 15px rgba(34, 212, 95, 0.35);
+}
+
+.btn-sign-out {
+  border: 1px solid #1a1a1a;
+  color: #888888;
+  background: transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.btn-sign-out:hover {
+  color: #22d45f;
+  border-color: #22d45f;
+}
+
+.card-task {
+  background: #111111;
+  border: 1px solid #1a1a1a;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.card-task:hover {
+  border-color: #22d45f;
+  box-shadow: 0 0 15px rgba(34, 212, 95, 0.35);
 }

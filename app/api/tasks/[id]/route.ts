@@ -1,0 +1,88 @@
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { data: task, error: fetchError } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', id)
+    .eq('owner_id', user.id)
+    .single()
+
+  if (fetchError || !task) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+  }
+
+  const body = await request.json()
+  const { status } = body
+
+  if (!['done', 'paused', 'active'].includes(status)) {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  }
+
+  if (status === 'done') {
+    const { data: updatedTask, error: updateError } = await supabase
+      .from('tasks')
+      .update({ status: 'done', done_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
+    const { data: recipient } = await supabase
+      .from('recipients')
+      .select('*')
+      .eq('owner_id', user.id)
+      .eq('email', task.recipient_email)
+      .single()
+
+    if (recipient) {
+      const newTasksCompleted = recipient.tasks_completed + 1
+      const newTotalNags = recipient.total_nags + task.nag_count
+      const newAvgNags = newTotalNags / newTasksCompleted
+      const newScore = Math.max(0, 10 - Math.min(10, newAvgNags * 0.8))
+
+      await supabase
+        .from('recipients')
+        .update({
+          tasks_completed: newTasksCompleted,
+          total_nags: newTotalNags,
+          average_nags_to_complete: newAvgNags,
+          reliability_score: newScore,
+        })
+        .eq('id', recipient.id)
+    }
+
+    return NextResponse.json(updatedTask)
+  }
+
+  const { data: updatedTask, error: updateError } = await supabase
+    .from('tasks')
+    .update({ status })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  }
+
+  return NextResponse.json(updatedTask)
+}
