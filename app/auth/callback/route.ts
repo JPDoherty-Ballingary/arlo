@@ -26,8 +26,14 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error && data.user) {
+      // Create profile row on first login if one doesn't exist
+      await supabase.from('profiles').upsert(
+        { id: data.user.id },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+
       return NextResponse.redirect(new URL(next, request.url))
     }
   }

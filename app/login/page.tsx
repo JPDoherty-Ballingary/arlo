@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import ThemeToggle from '@/app/components/theme-toggle'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -30,29 +31,24 @@ export default function LoginPage() {
   }
 
   return (
-    <main
-      className="flex min-h-screen items-center justify-center px-4"
-      style={{ background: '#0a0a0a' }}
-    >
+    <main className="flex min-h-screen items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-sm">
         <div className="mb-8">
-          <Link
-            href="/"
-            className="text-xl font-bold"
-            style={{ color: '#22d45f', letterSpacing: '-0.02em' }}
-          >
+          <Link href="/" className="text-xl font-bold" style={{ color: '#22d45f', letterSpacing: '-0.02em' }}>
             ARLO
           </Link>
-          <h1 className="mt-6 text-2xl font-bold text-white">Log in</h1>
+          <h1 className="mt-6 text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            Log in
+          </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label
-              className="block text-sm mb-1"
-              style={{ color: '#888888' }}
-              htmlFor="email"
-            >
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }} htmlFor="email">
               Email
             </label>
             <input
@@ -61,22 +57,12 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md px-3 py-2 text-white placeholder-zinc-600 outline-none transition-colors"
-              style={{
-                background: '#111111',
-                border: '1px solid #1a1a1a',
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = '#22d45f')}
-              onBlur={(e) => (e.currentTarget.style.borderColor = '#1a1a1a')}
+              className="arlo-input"
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label
-              className="block text-sm mb-1"
-              style={{ color: '#888888' }}
-              htmlFor="password"
-            >
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }} htmlFor="password">
               Password
             </label>
             <input
@@ -85,17 +71,11 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md px-3 py-2 text-white placeholder-zinc-600 outline-none transition-colors"
-              style={{
-                background: '#111111',
-                border: '1px solid #1a1a1a',
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = '#22d45f')}
-              onBlur={(e) => (e.currentTarget.style.borderColor = '#1a1a1a')}
+              className="arlo-input"
               placeholder="••••••••"
             />
           </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-500">{error}</p>}
           <button
             type="submit"
             disabled={loading}
@@ -105,13 +85,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm" style={{ color: '#888888' }}>
+        <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
           No account?{' '}
-          <Link
-            href="/signup"
-            className="transition-colors hover:text-white"
-            style={{ color: '#22d45f' }}
-          >
+          <Link href="/signup" className="transition-colors hover:underline" style={{ color: '#22d45f' }}>
             Sign up
           </Link>
         </p>

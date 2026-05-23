@@ -22,13 +22,12 @@ export default async function DonePage({
 
   if (!task) {
     return (
-      <main
-        className="flex min-h-screen items-center justify-center px-6"
-        style={{ background: '#0a0a0a' }}
-      >
+      <main className="flex min-h-screen items-center justify-center px-6" style={{ background: 'var(--bg)' }}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-3">Link not found</h1>
-          <p style={{ color: '#888888' }}>This link is no longer valid.</p>
+          <h1 className="text-2xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+            Link not found
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }}>This link is no longer valid.</p>
         </div>
       </main>
     )
@@ -36,12 +35,10 @@ export default async function DonePage({
 
   const recipientName = task.recipient_name || task.recipient_email
 
-  // Fetch owner email
   const { data: ownerData } = await supabaseAdmin.auth.admin.getUserById(task.owner_id)
   const ownerEmail = ownerData.user?.email || ''
   const firstName = ownerFirstName(ownerEmail)
 
-  // Only notify once
   if (!task.owner_notified_of_claim) {
     await supabaseAdmin
       .from('tasks')
@@ -66,36 +63,30 @@ export default async function DonePage({
   }
 
   return (
-    <main
-      className="flex min-h-screen items-center justify-center px-6"
-      style={{ background: '#0a0a0a' }}
-    >
+    <main className="flex min-h-screen items-center justify-center px-6" style={{ background: 'var(--bg)' }}>
       <div className="w-full max-w-md text-center">
-        <div
-          className="text-2xl font-bold mb-8"
-          style={{ color: '#22d45f', letterSpacing: '2px' }}
-        >
+        <div className="text-2xl font-bold mb-8" style={{ color: '#22d45f', letterSpacing: '2px' }}>
           ARLO
         </div>
 
         <div
           className="rounded-lg p-8"
-          style={{ background: '#111111', border: '1px solid #1a1a1a' }}
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"
-            style={{ background: '#052e16', border: '1px solid #22d45f' }}
+            style={{ background: 'var(--claim-badge-bg)', border: '1px solid #22d45f' }}
           >
-            ✓
+            <span style={{ color: 'var(--claim-badge-color)' }}>✓</span>
           </div>
-          <h1 className="text-xl font-bold text-white mb-3">
+          <h1 className="text-xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
             Thanks, {recipientName.split(' ')[0]}
           </h1>
-          <p style={{ color: '#888888', lineHeight: 1.6 }}>
-            We&apos;ve let <strong style={{ color: '#fff' }}>{firstName}</strong> know.
+          <p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            We&apos;ve let <strong style={{ color: 'var(--text-primary)' }}>{firstName}</strong> know.
             They&apos;ll confirm it&apos;s done on their end.
           </p>
-          <p className="mt-3 text-sm" style={{ color: '#555' }}>
+          <p className="mt-3 text-sm" style={{ color: 'var(--text-faint)' }}>
             Arlo will keep following up until they do.
           </p>
         </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import ThemeToggle from '@/app/components/theme-toggle'
 
 type Recipient = {
   id: string
@@ -29,21 +30,6 @@ function isoToDatetimeLocal(iso: string | null): string {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
   return d.toISOString().slice(0, 16)
-}
-
-const inputClass =
-  'w-full rounded-md px-3 py-2 text-white placeholder-zinc-600 outline-none transition-[border-color] text-sm'
-const inputStyle = { background: '#111111', border: '1px solid #1a1a1a' }
-
-function focusGreen(
-  e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-) {
-  e.currentTarget.style.borderColor = '#22d45f'
-}
-function blurGrey(
-  e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-) {
-  e.currentTarget.style.borderColor = '#1a1a1a'
 }
 
 function matchRecipient(hint: string | null, recipients: Recipient[]): Recipient | null {
@@ -93,16 +79,9 @@ function RecipientAutocomplete({
           setQuery(e.target.value)
           onEmailChange(e.target.value)
         }}
-        onFocus={(e) => {
-          setOpen(true)
-          focusGreen(e)
-        }}
-        onBlur={(e) => {
-          setTimeout(() => setOpen(false), 150)
-          blurGrey(e)
-        }}
-        className={inputClass}
-        style={{ ...inputStyle }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="arlo-input"
         placeholder="colleague@company.com"
         autoComplete="off"
       />
@@ -110,14 +89,15 @@ function RecipientAutocomplete({
         <div
           className="absolute z-10 w-full mt-1 rounded-md overflow-auto"
           style={{
-            background: '#0f0f0f',
-            border: '1px solid #2a2a2a',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
             maxHeight: 200,
             top: '100%',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           }}
         >
           {filtered.length === 0 ? (
-            <p className="px-3 py-2 text-xs" style={{ color: '#555' }}>
+            <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-faint)' }}>
               No saved recipients match — type a full email address
             </p>
           ) : (
@@ -126,11 +106,18 @@ function RecipientAutocomplete({
                 key={r.id}
                 type="button"
                 onMouseDown={() => select(r)}
-                className="w-full text-left px-3 py-2 flex items-center justify-between gap-3 hover:bg-zinc-800 transition-colors"
+                className="w-full text-left px-3 py-2 flex items-center justify-between gap-3 transition-colors"
+                style={{ color: 'var(--text-primary)' }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = 'var(--border)')
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = 'transparent')
+                }
               >
-                <span className="text-sm text-white font-medium truncate">{r.name || r.email}</span>
+                <span className="text-sm font-medium truncate">{r.name || r.email}</span>
                 {r.name && (
-                  <span className="text-xs shrink-0" style={{ color: '#555' }}>
+                  <span className="text-xs shrink-0" style={{ color: 'var(--text-faint)' }}>
                     {r.email}
                   </span>
                 )}
@@ -255,26 +242,24 @@ export default function TranscriptsNewPage() {
   }
 
   return (
-    <div className="min-h-screen text-white" style={{ background: '#0a0a0a' }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <nav
         className="px-6 py-4 flex items-center justify-between"
-        style={{ background: '#0a0a0a', borderBottom: '1px solid #1a1a1a' }}
+        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
       >
-        <Link
-          href="/dashboard"
-          className="font-bold text-lg"
-          style={{ color: '#22d45f', letterSpacing: '-0.02em' }}
-        >
+        <Link href="/dashboard" className="font-bold text-lg" style={{ color: '#22d45f', letterSpacing: '-0.02em' }}>
           ARLO
         </Link>
+        <ThemeToggle />
       </nav>
 
       <main className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-bold text-white mb-8">Parse transcript</h1>
+        <h1 className="text-2xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>
+          Parse transcript
+        </h1>
 
-        {/* Transcript input */}
         <form onSubmit={handleParse} className="flex flex-col gap-4">
-          <label className="block text-sm mb-1" style={{ color: '#888888' }}>
+          <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }}>
             Paste your meeting transcript
           </label>
           <textarea
@@ -282,13 +267,10 @@ export default function TranscriptsNewPage() {
             value={transcript}
             onChange={(e) => setTranscript(e.target.value)}
             required
-            className="w-full rounded-md px-4 py-3 text-white placeholder-zinc-600 outline-none resize-y transition-[border-color]"
-            style={{ background: '#111111', border: '1px solid #1a1a1a' }}
-            onFocus={focusGreen}
-            onBlur={blurGrey}
+            className="arlo-input resize-y"
             placeholder="Paste the full transcript here — Arlo will extract all action items automatically."
           />
-          {parseError && <p className="text-sm text-red-400">{parseError}</p>}
+          {parseError && <p className="text-sm text-red-500">{parseError}</p>}
           <button
             type="submit"
             disabled={parsing || !transcript.trim()}
@@ -298,19 +280,18 @@ export default function TranscriptsNewPage() {
           </button>
         </form>
 
-        {/* Extracted tasks */}
         {tasks !== null && (
           <div className="mt-12">
             {tasks.length === 0 ? (
-              <p style={{ color: '#888888' }}>
+              <p style={{ color: 'var(--text-muted)' }}>
                 Arlo found no action items in this transcript. Try a different one.
               </p>
             ) : (
               <>
-                <h2 className="text-lg font-semibold text-white mb-1">
+                <h2 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                   {tasks.length} action item{tasks.length === 1 ? '' : 's'} found
                 </h2>
-                <p className="text-sm mb-6" style={{ color: '#888888' }}>
+                <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
                   Fill in recipient emails, edit anything Arlo got wrong, then save.
                 </p>
 
@@ -319,7 +300,7 @@ export default function TranscriptsNewPage() {
                     <div
                       key={task._id}
                       className="rounded-lg p-5"
-                      style={{ background: '#111111', border: '1px solid #1a1a1a' }}
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                     >
                       <div className="flex items-start justify-between gap-3 mb-4">
                         <span className="text-xs font-medium" style={{ color: '#22d45f' }}>
@@ -328,52 +309,42 @@ export default function TranscriptsNewPage() {
                         <button
                           type="button"
                           onClick={() => removeTask(task._id)}
-                          className="text-sm transition-colors hover:text-red-400"
-                          style={{ color: '#555' }}
+                          className="text-sm transition-colors hover:text-red-500"
+                          style={{ color: 'var(--text-faint)' }}
                         >
                           ✕ Remove
                         </button>
                       </div>
 
                       <div className="flex flex-col gap-3">
-                        {/* Title */}
                         <div>
-                          <label className="block text-xs mb-1" style={{ color: '#888888' }}>
+                          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                             Task title
                           </label>
                           <input
                             type="text"
                             value={task.title}
                             onChange={(e) => updateTask(task._id, 'title', e.target.value)}
-                            className={inputClass}
-                            style={{ ...inputStyle }}
-                            onFocus={focusGreen}
-                            onBlur={blurGrey}
+                            className="arlo-input"
                           />
                         </div>
 
-                        {/* Context */}
                         <div>
-                          <label className="block text-xs mb-1" style={{ color: '#888888' }}>
+                          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                             Context
                           </label>
                           <textarea
                             rows={2}
                             value={task.context}
                             onChange={(e) => updateTask(task._id, 'context', e.target.value)}
-                            className="w-full rounded-md px-3 py-2 text-white placeholder-zinc-600 outline-none resize-none transition-[border-color] text-sm"
-                            style={{ ...inputStyle }}
-                            onFocus={focusGreen}
-                            onBlur={blurGrey}
+                            className="arlo-input resize-none"
                           />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                          {/* Recipient email — autocomplete */}
                           <div>
-                            <label className="block text-xs mb-1" style={{ color: '#888888' }}>
-                              Recipient email{' '}
-                              <span style={{ color: '#22d45f' }}>*</span>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                              Recipient email <span style={{ color: '#22d45f' }}>*</span>
                             </label>
                             <RecipientAutocomplete
                               recipients={recipients}
@@ -383,39 +354,27 @@ export default function TranscriptsNewPage() {
                             />
                           </div>
 
-                          {/* Recipient name */}
                           <div>
-                            <label className="block text-xs mb-1" style={{ color: '#888888' }}>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                               Recipient name
                             </label>
                             <input
                               type="text"
                               value={task.recipient_name}
-                              onChange={(e) =>
-                                updateTask(task._id, 'recipient_name', e.target.value)
-                              }
-                              className={inputClass}
-                              style={{ ...inputStyle }}
-                              onFocus={focusGreen}
-                              onBlur={blurGrey}
+                              onChange={(e) => updateTask(task._id, 'recipient_name', e.target.value)}
+                              className="arlo-input"
                               placeholder={task.recipient_hint || 'e.g. Sarah'}
                             />
                           </div>
 
-                          {/* Urgency */}
                           <div>
-                            <label className="block text-xs mb-1" style={{ color: '#888888' }}>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                               Urgency
                             </label>
                             <select
                               value={task.urgency}
-                              onChange={(e) =>
-                                updateTask(task._id, 'urgency', e.target.value)
-                              }
-                              className={inputClass}
-                              style={{ ...inputStyle }}
-                              onFocus={focusGreen}
-                              onBlur={blurGrey}
+                              onChange={(e) => updateTask(task._id, 'urgency', e.target.value)}
+                              className="arlo-input"
                             >
                               {URGENCY_OPTIONS.map((u) => (
                                 <option key={u} value={u}>
@@ -425,9 +384,8 @@ export default function TranscriptsNewPage() {
                             </select>
                           </div>
 
-                          {/* Deadline */}
                           <div>
-                            <label className="block text-xs mb-1" style={{ color: '#888888' }}>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                               Deadline
                             </label>
                             <input
@@ -436,10 +394,8 @@ export default function TranscriptsNewPage() {
                               onChange={(e) =>
                                 updateTask(task._id, 'suggested_deadline', e.target.value)
                               }
-                              className={inputClass}
-                              style={{ ...inputStyle, colorScheme: 'dark' }}
-                              onFocus={focusGreen}
-                              onBlur={blurGrey}
+                              className="arlo-input"
+                              style={{ colorScheme: 'light dark' }}
                             />
                           </div>
                         </div>
@@ -448,7 +404,7 @@ export default function TranscriptsNewPage() {
                   ))}
                 </div>
 
-                {saveError && <p className="mt-4 text-sm text-red-400">{saveError}</p>}
+                {saveError && <p className="mt-4 text-sm text-red-500">{saveError}</p>}
 
                 <div className="mt-6 flex items-center gap-4">
                   <button
@@ -462,7 +418,7 @@ export default function TranscriptsNewPage() {
                       : `Save ${tasks.length} task${tasks.length === 1 ? '' : 's'} to Arlo`}
                   </button>
                   {!allEmailsFilled && (
-                    <p className="text-xs" style={{ color: '#888888' }}>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                       Fill in all recipient emails to continue
                     </p>
                   )}

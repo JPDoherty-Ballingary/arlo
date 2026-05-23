@@ -16,10 +16,10 @@ type Task = {
   owner_notified_of_claim: boolean
 }
 
-const URGENCY_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  low: { bg: '#1f2937', color: '#9ca3af', label: 'Low' },
-  medium: { bg: '#451a03', color: '#f59e0b', label: 'Medium' },
-  high: { bg: '#450a0a', color: '#ef4444', label: 'High' },
+const URGENCY_BADGE: Record<string, { label: string }> = {
+  low: { label: 'Low' },
+  medium: { label: 'Medium' },
+  high: { label: 'High' },
 }
 
 function formatDeadline(deadline: string | null): { text: string; overdue: boolean } | null {
@@ -68,19 +68,24 @@ export default function TaskCard({ task }: { task: Task }) {
   }
 
   return (
-    <div className="card-task rounded-lg p-5 flex flex-col gap-4 transition-all">
+    <div
+      className="card-task rounded-lg p-5 flex flex-col gap-4 cursor-pointer"
+      onClick={() => router.push(`/tasks/${task.id}`)}
+    >
       {/* Header row */}
       <div
         className="flex items-start justify-between gap-3"
-        style={{ opacity: isPaused ? 0.5 : 1 }}
+        style={{ opacity: isPaused ? 0.6 : 1 }}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-white leading-tight">{task.title}</h3>
+            <h3 className="font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
+              {task.title}
+            </h3>
             {isPaused && (
               <span
                 className="text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ background: '#1a1a1a', color: '#888888' }}
+                style={{ background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
               >
                 Paused
               </span>
@@ -88,23 +93,30 @@ export default function TaskCard({ task }: { task: Task }) {
             {task.owner_notified_of_claim && (
               <span
                 className="text-xs px-2 py-0.5 rounded-full font-medium animate-pulse"
-                style={{ background: '#052e16', color: '#22d45f', border: '1px solid #22d45f' }}
+                style={{
+                  background: 'var(--claim-badge-bg)',
+                  color: 'var(--claim-badge-color)',
+                  border: '1px solid #22d45f',
+                }}
               >
                 Claiming done — confirm?
               </span>
             )}
           </div>
-          <p className="text-sm mt-0.5" style={{ color: '#888888' }}>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
             {task.recipient_name || task.recipient_email}
             {task.recipient_name && (
-              <span style={{ color: '#555' }}> · {task.recipient_email}</span>
+              <span style={{ color: 'var(--text-faint)' }}> · {task.recipient_email}</span>
             )}
           </p>
         </div>
 
         <span
           className="text-xs px-2.5 py-1 rounded-full font-medium shrink-0"
-          style={{ background: badge.bg, color: badge.color }}
+          style={{
+            background: `var(--badge-${task.urgency}-bg)`,
+            color: `var(--badge-${task.urgency}-color)`,
+          }}
         >
           {badge.label}
         </span>
@@ -113,19 +125,23 @@ export default function TaskCard({ task }: { task: Task }) {
       {/* Meta row */}
       <div
         className="flex flex-wrap gap-x-4 gap-y-1 text-sm"
-        style={{ color: '#888888', opacity: isPaused ? 0.5 : 1 }}
+        style={{ color: 'var(--text-muted)', opacity: isPaused ? 0.6 : 1 }}
       >
         {deadline && (
-          <span style={{ color: deadline.overdue ? '#ef4444' : '#888888' }}>
+          <span style={{ color: deadline.overdue ? '#ef4444' : 'var(--text-muted)' }}>
             {deadline.text}
           </span>
         )}
-        <span>{task.nag_count === 0 ? 'Not yet nagged' : `Nagged ${task.nag_count} time${task.nag_count === 1 ? '' : 's'}`}</span>
+        <span>
+          {task.nag_count === 0
+            ? 'Not yet nagged'
+            : `Nagged ${task.nag_count} time${task.nag_count === 1 ? '' : 's'}`}
+        </span>
         <span>{lastNagged}</span>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-2 pt-1">
+      {/* Action buttons — stop propagation so clicks don't navigate */}
+      <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => updateStatus('done')}
           disabled={pending}
@@ -137,14 +153,14 @@ export default function TaskCard({ task }: { task: Task }) {
           onClick={() => updateStatus(isPaused ? 'active' : 'paused')}
           disabled={pending}
           className="flex-1 py-1.5 rounded-md text-sm font-semibold transition-colors disabled:opacity-40"
-          style={{ border: '1px solid #1a1a1a', color: '#888888' }}
+          style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = '#22d45f'
             e.currentTarget.style.color = '#22d45f'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#1a1a1a'
-            e.currentTarget.style.color = '#888888'
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.color = 'var(--text-muted)'
           }}
         >
           {isPaused ? 'Resume' : 'Pause'}
