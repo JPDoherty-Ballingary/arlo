@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 type Contact = {
@@ -33,6 +33,15 @@ function fmtDate(iso: string): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+  })
+}
+
+function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -117,12 +126,18 @@ function ContactCard({
   contact,
   onEdit,
   onIntroduce,
+  onEditScheduled,
 }: {
   contact: Contact
   onEdit: () => void
   onIntroduce: () => void
+  onEditScheduled: () => void
 }) {
   const hasScore = contact.total_tasks > 0 && contact.reliability_score !== null
+  const isScheduledPending =
+    !contact.intro_email_sent &&
+    !!contact.intro_email_scheduled_at &&
+    new Date(contact.intro_email_scheduled_at) > new Date()
 
   return (
     <div
@@ -175,6 +190,22 @@ function ContactCard({
           >
             Intro sent{contact.intro_email_sent_at ? ` ${fmtDate(contact.intro_email_sent_at)}` : ''}
           </span>
+        ) : isScheduledPending ? (
+          <>
+            <span
+              className="text-xs px-2.5 py-1 rounded-full font-medium"
+              style={{ background: '#451a03', color: '#f59e0b', border: '1px solid #92400e' }}
+            >
+              Scheduled {fmtDateTime(contact.intro_email_scheduled_at!)}
+            </span>
+            <button
+              onClick={onEditScheduled}
+              className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'transparent' }}
+            >
+              Edit
+            </button>
+          </>
         ) : (
           <button
             onClick={onIntroduce}
@@ -478,6 +509,7 @@ function IntroduceModal({
                 onChange={(e) => setScheduleAt(e.target.value)}
                 min={minDateTime}
                 className="arlo-input"
+                style={{ colorScheme: 'light dark' }}
                 autoFocus
               />
             </Field>
@@ -527,6 +559,149 @@ function IntroduceModal({
   )
 }
 
+// ─── Edit Scheduled Intro Modal ───────────────────────────────────────────────
+
+function EditScheduledIntroModal({
+  contact,
+  ownerDisplayName,
+  onClose,
+  onSent,
+  onRescheduled,
+}: {
+  contact: Contact
+  ownerDisplayName: string
+  onClose: () => void
+  onSent: (sentAt: string) => void
+  onRescheduled: (sendAt: string) => void
+}) {
+  const [loading, setLoading] = useState(true)
+  const [subject, setSubject] = useState('Meet ARLO — your new accountability partner')
+  const [body, setBody] = useState(() => buildIntroBody(contact.name, ownerDisplayName))
+  const [scheduleAt, setScheduleAt] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const minDateTime = new Date(Date.now() + 60_000).toISOString().slice(0, 16)
+
+  useEffect(() => {
+    fetch(`/api/contacts/${contact.id}/scheduled-intro`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.subject) setSubject(data.subject)
+        if (data?.send_at) setScheduleAt(new Date(data.send_at).toISOString().slice(0, 16))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [contact.id])
+
+  async function submit(sendNow: boolean) {
+    if (!subject.trim() || !body.trim()) {
+      setError('Subject and message are required')
+      return
+    }
+    if (!sendNow && !scheduleAt) {
+      setError('Please set a send time')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/introduce`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, body, sendAt: sendNow ? null : scheduleAt }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Failed to save'); return }
+      if (data.scheduled) {
+        onRescheduled(data.send_at)
+      } else {
+        onSent(data.sent_at)
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={`Edit scheduled intro — ${contact.name || contact.email}`}
+      onClose={onClose}
+      wide
+    >
+      {loading ? (
+        <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <Field label="Subject">
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="arlo-input"
+              autoFocus
+            />
+          </Field>
+
+          <Field
+            label="Message"
+            hint="The original message text wasn't stored — re-edit below or keep the default."
+          >
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              className="arlo-input resize-y"
+              style={{
+                fontFamily: 'ui-monospace, "Courier New", Courier, monospace',
+                fontSize: '13px',
+                lineHeight: '1.75',
+                minHeight: '280px',
+              }}
+            />
+          </Field>
+
+          <Field label="Send at">
+            <input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              min={minDateTime}
+              className="arlo-input"
+              style={{ colorScheme: 'light dark' }}
+            />
+          </Field>
+
+          {error && <p className="text-sm" style={{ color: '#ef4444' }}>{error}</p>}
+
+          <div className="flex gap-3 justify-end pt-1 flex-wrap">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-md text-sm"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => submit(true)}
+              disabled={saving}
+              className="btn-green-outline px-5 py-2 rounded-md font-semibold text-sm disabled:opacity-50"
+            >
+              {saving ? 'Sending…' : 'Send now'}
+            </button>
+            <button
+              onClick={() => submit(false)}
+              disabled={saving || !scheduleAt}
+              className="btn-green px-5 py-2 rounded-md font-semibold text-sm disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Update schedule'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ContactsClient({ initialContacts, ownerDisplayName }: Props) {
@@ -534,6 +709,7 @@ export default function ContactsClient({ initialContacts, ownerDisplayName }: Pr
   const [showAdd, setShowAdd] = useState(false)
   const [editContact, setEditContact] = useState<Contact | null>(null)
   const [introduceContact, setIntroduceContact] = useState<Contact | null>(null)
+  const [editScheduledContact, setEditScheduledContact] = useState<Contact | null>(null)
 
   function handleContactAdded(contact: Contact) {
     setContacts((prev) => [...prev, contact].sort((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email)))
@@ -545,22 +721,22 @@ export default function ContactsClient({ initialContacts, ownerDisplayName }: Pr
     setEditContact(null)
   }
 
-  function handleIntroSent(contactId: string, sentAt: string) {
+  function markIntroSent(contactId: string, sentAt: string) {
     setContacts((prev) =>
       prev.map((c) =>
-        c.id === contactId ? { ...c, intro_email_sent: true, intro_email_sent_at: sentAt } : c
+        c.id === contactId
+          ? { ...c, intro_email_sent: true, intro_email_sent_at: sentAt, intro_email_scheduled_at: null }
+          : c
       )
     )
-    setIntroduceContact(null)
   }
 
-  function handleIntroScheduled(contactId: string, sendAt: string) {
+  function markIntroScheduled(contactId: string, sendAt: string) {
     setContacts((prev) =>
       prev.map((c) =>
         c.id === contactId ? { ...c, intro_email_scheduled_at: sendAt } : c
       )
     )
-    setIntroduceContact(null)
   }
 
   return (
@@ -605,6 +781,7 @@ export default function ContactsClient({ initialContacts, ownerDisplayName }: Pr
                 contact={contact}
                 onEdit={() => setEditContact(contact)}
                 onIntroduce={() => setIntroduceContact(contact)}
+                onEditScheduled={() => setEditScheduledContact(contact)}
               />
             ))}
           </div>
@@ -627,8 +804,17 @@ export default function ContactsClient({ initialContacts, ownerDisplayName }: Pr
           contact={introduceContact}
           ownerDisplayName={ownerDisplayName}
           onClose={() => setIntroduceContact(null)}
-          onSent={(sentAt) => handleIntroSent(introduceContact.id, sentAt)}
-          onScheduled={(sendAt) => handleIntroScheduled(introduceContact.id, sendAt)}
+          onSent={(sentAt) => { markIntroSent(introduceContact.id, sentAt); setIntroduceContact(null) }}
+          onScheduled={(sendAt) => { markIntroScheduled(introduceContact.id, sendAt); setIntroduceContact(null) }}
+        />
+      )}
+      {editScheduledContact && (
+        <EditScheduledIntroModal
+          contact={editScheduledContact}
+          ownerDisplayName={ownerDisplayName}
+          onClose={() => setEditScheduledContact(null)}
+          onSent={(sentAt) => { markIntroSent(editScheduledContact.id, sentAt); setEditScheduledContact(null) }}
+          onRescheduled={(sendAt) => { markIntroScheduled(editScheduledContact.id, sendAt); setEditScheduledContact(null) }}
         />
       )}
     </>

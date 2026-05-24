@@ -109,3 +109,92 @@ export async function POST(
 
   return NextResponse.json({ sent: true, sent_at: sentAt })
 }
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data: contact } = await supabase
+    .from('recipients')
+    .select('id, email, name')
+    .eq('id', id)
+    .eq('owner_id', user.id)
+    .single()
+  if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', user.id)
+    .maybeSingle()
+  const ownerName = profile?.display_name || user.email || 'Your contact'
+
+  const reqBody = await request.json()
+  const { subject, body: emailBody, sendAt } = reqBody
+
+  if (!subject?.trim() || !emailBody?.trim()) {
+    return NextResponse.json({ error: 'Subject and body are required' }, { status: 400 })
+  }
+
+  const html = buildHtml(emailBody, ownerName)
+  const scheduledTime = sendAt ? new Date(sendAt) : null
+  const isFuture = scheduledTime && scheduledTime > new Date()
+
+  const { data: existing } = await supabaseAdmin
+    .from('scheduled_emails')
+    .select('id')
+    .eq('recipient_id', id)
+    .eq('sent', false)
+    .limit(1)
+    .maybeSingle()
+
+  if (isFuture) {
+    if (existing) {
+      await supabaseAdmin
+        .from('scheduled_emails')
+        .update({ subject, html, send_at: scheduledTime.toISOString() })
+        .eq('id', existing.id)
+    } else {
+      await supabaseAdmin.from('scheduled_emails').insert({
+        owner_id: user.id,
+        recipient_id: contact.id,
+        to_email: contact.email,
+        reply_to: user.email,
+        subject,
+        html,
+        send_at: scheduledTime.toISOString(),
+      })
+    }
+    await supabaseAdmin
+      .from('recipients')
+      .update({ intro_email_scheduled_at: scheduledTime.toISOString() })
+      .eq('id', contact.id)
+    return NextResponse.json({ scheduled: true, send_at: scheduledTime.toISOString() })
+  }
+
+  // Send now — delete the pending scheduled row, send immediately
+  if (existing) {
+    await supabaseAdmin.from('scheduled_emails').delete().eq('id', existing.id)
+  }
+
+  await resend.emails.send({
+    from: 'ARLO <arlo@agent-arlo.com>',
+    to: contact.email,
+    replyTo: user.email ?? undefined,
+    subject,
+    html,
+  })
+
+  const sentAt = new Date().toISOString()
+  await supabaseAdmin
+    .from('recipients')
+    .update({ intro_email_sent: true, intro_email_sent_at: sentAt, intro_email_scheduled_at: null })
+    .eq('id', contact.id)
+
+  return NextResponse.json({ sent: true, sent_at: sentAt })
+}
