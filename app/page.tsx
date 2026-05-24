@@ -26,8 +26,8 @@ export default function LandingPage() {
         </p>
 
         <p className="mt-8 text-base sm:text-lg max-w-md" style={{ color: 'var(--text-primary)' }}>
-          Arlo is your Automated Relentless Loop Operator. Feed him your action
-          items. He&apos;ll handle the rest.
+          Arlo keeps your team accountable. Add action items from your meetings
+          — he&apos;ll follow up by email until they&apos;re done.
         </p>
 
         <div className="mt-8 flex gap-4">
@@ -41,7 +41,14 @@ export default function LandingPage() {
       </div>
 
       <footer className="py-6 text-center text-xs" style={{ color: 'var(--text-faint)' }}>
-        ARLO — Automated Relentless Loop Operator
+        <a
+          href="https://deliberatelysimple.digital"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--text-faint)', textDecoration: 'underline' }}
+        >
+          A Deliberately Simple tool.
+        </a>
       </footer>
     </main>
   )
