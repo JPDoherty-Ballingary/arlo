@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import SignOutButton from './sign-out-button'
 import DashboardTabs from './dashboard-tabs'
 import ThemeToggle from '@/app/components/theme-toggle'
+import Logo from '@/app/components/logo'
 
 type Recipient = {
   id: string
@@ -49,12 +50,7 @@ export default async function DashboardPage() {
         className="px-6 py-4 flex items-center justify-between"
         style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
       >
-        <span
-          className="font-bold text-lg"
-          style={{ color: '#22d45f', letterSpacing: '-0.02em' }}
-        >
-          ARLO
-        </span>
+        <Logo className="h-8 w-auto" />
         <div className="flex items-center gap-3">
           <Link
             href="/transcripts/new"

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import RollingAcronym from './components/rolling-acronym'
 import ThemeToggle from './components/theme-toggle'
+import Logo from './components/logo'
 
 export default function LandingPage() {
   return (
@@ -10,12 +11,7 @@ export default function LandingPage() {
       </nav>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <h1
-          className="text-7xl sm:text-8xl font-bold"
-          style={{ color: 'var(--text-primary)', letterSpacing: '-0.04em' }}
-        >
-          ARLO
-        </h1>
+        <Logo className="h-20 sm:h-24 w-auto" />
 
         <div className="mt-3 w-full max-w-lg">
           <RollingAcronym />

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import ThemeToggle from '@/app/components/theme-toggle'
+import Logo from '@/app/components/logo'
 import SignOutButton from '@/app/dashboard/sign-out-button'
 import SettingsForm from './settings-form'
 
@@ -26,12 +27,8 @@ export default async function SettingsPage() {
         className="px-6 py-4 flex items-center justify-between"
         style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
       >
-        <Link
-          href="/dashboard"
-          className="font-bold text-lg"
-          style={{ color: '#22d45f', letterSpacing: '-0.02em' }}
-        >
-          ARLO
+        <Link href="/dashboard">
+          <Logo className="h-8 w-auto" />
         </Link>
         <div className="flex items-center gap-3">
           <Link
