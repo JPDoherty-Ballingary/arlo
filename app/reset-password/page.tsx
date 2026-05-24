@@ -6,20 +6,25 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ThemeToggle from '@/app/components/theme-toggle'
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    setLoading(true)
 
+    if (password !== confirm) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.updateUser({ password })
 
     if (error) {
       setError(error.message)
@@ -42,43 +47,40 @@ export default function LoginPage() {
             ARLO
           </Link>
           <h1 className="mt-6 text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Log in
+            Choose a new password
           </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }} htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="arlo-input"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
             <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }} htmlFor="password">
-              Password
+              New password
             </label>
             <input
               id="password"
               type="password"
               required
+              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="arlo-input"
               placeholder="••••••••"
             />
           </div>
-          <div className="text-right -mt-2">
-            <Link href="/forgot-password" className="text-xs hover:underline" style={{ color: 'var(--text-faint)' }}>
-              Forgot password?
-            </Link>
+          <div>
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }} htmlFor="confirm">
+              Confirm password
+            </label>
+            <input
+              id="confirm"
+              type="password"
+              required
+              minLength={6}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className="arlo-input"
+              placeholder="••••••••"
+            />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <button
@@ -86,16 +88,9 @@ export default function LoginPage() {
             disabled={loading}
             className="btn-green mt-2 w-full rounded-md px-4 py-2 font-semibold disabled:opacity-50"
           >
-            {loading ? 'Logging in…' : 'Log in'}
+            {loading ? 'Saving…' : 'Set new password'}
           </button>
         </form>
-
-        <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-          No account?{' '}
-          <Link href="/signup" className="transition-colors hover:underline" style={{ color: '#22d45f' }}>
-            Sign up
-          </Link>
-        </p>
       </div>
     </main>
   )
