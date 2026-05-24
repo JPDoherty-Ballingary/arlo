@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 type NagLog = {
   id: string
-  created_at: string
+  sent_at: string
   tone_used: string
   subject: string
   body: string
@@ -64,7 +64,7 @@ export default function NagLogEntry({ log, index }: { log: NagLog; index: number
         </span>
 
         <span className="text-xs shrink-0 hidden sm:block" style={{ color: 'var(--text-faint)' }}>
-          {formatDateTime(log.created_at)}
+          {formatDateTime(log.sent_at)}
         </span>
 
         <svg

@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import ThemeToggle from '@/app/components/theme-toggle'
+import Logo from '@/app/components/logo'
 import TaskActions from './task-actions'
 import NagLogEntry from './nag-log-entry'
 
@@ -59,11 +61,11 @@ export default async function TaskDetailPage({
   if (taskError || !task) redirect('/dashboard')
 
   const [{ data: nagLogs }, { data: recipient }] = await Promise.all([
-    supabase
+    supabaseAdmin
       .from('nag_logs')
-      .select('id, created_at, tone_used, subject, body')
+      .select('id, sent_at, tone_used, subject, body')
       .eq('task_id', id)
-      .order('created_at', { ascending: true }),
+      .order('sent_at', { ascending: true }),
     supabase
       .from('recipients')
       .select('reliability_score, tasks_completed')
@@ -86,8 +88,8 @@ export default async function TaskDetailPage({
         className="px-6 py-4 flex items-center justify-between"
         style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
       >
-        <Link href="/dashboard" className="font-bold text-lg" style={{ color: '#22d45f', letterSpacing: '-0.02em' }}>
-          ARLO
+        <Link href="/dashboard">
+          <Logo className="h-8 w-auto" />
         </Link>
         <ThemeToggle />
       </nav>
