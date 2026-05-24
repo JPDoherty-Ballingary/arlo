@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Arlo",
-  description: "Automated Relentless Loop Operator",
+  title: "ARLO — he chases, you decide",
+  description: "Add a task, assign it to someone, set a reminder. ARLO emails them until it's done. You decide when that is.",
 };
 
 export default function RootLayout({

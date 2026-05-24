@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/nag",
       "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-emails",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

@@ -53,6 +53,13 @@ export default async function DashboardPage() {
         <Logo className="h-8 w-auto" />
         <div className="flex items-center gap-3">
           <Link
+            href="/contacts"
+            className="text-sm transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Contacts
+          </Link>
+          <Link
             href="/transcripts"
             className="text-sm transition-colors"
             style={{ color: 'var(--text-muted)' }}

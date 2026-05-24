@@ -26,7 +26,6 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
   <div class="container">
     <div class="header">
       <h1>ARLO</h1>
-      <p>Automated Relentless Loop Operator</p>
     </div>
     <div class="body">
       <p class="task-title">{{TASK_TITLE}}</p>
@@ -36,8 +35,7 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
       </div>
     </div>
     <div class="footer">
-      <p>This reminder was sent by Arlo on behalf of {{OWNER_NAME}}.<br>
-      Arlo is an Automated Relentless Loop Operator.</p>
+      <p>This reminder was sent by ARLO on behalf of {{OWNER_NAME}}.</p>
       <p style="margin-top: 8px;"><a href="{{UNSUBSCRIBE_LINK}}" class="unsubscribe">Unsubscribe from these reminders</a></p>
     </div>
   </div>
@@ -169,7 +167,7 @@ export async function GET(request: Request) {
         messages: [
           {
             role: 'user',
-            content: `You are Arlo, an Automated Relentless Loop Operator. You are a professional AI chief of staff managing task accountability on behalf of someone. You are persistent, impossible to ignore, but always professional. Never rude. Never aggressive. Just relentless.
+            content: `You are ARLO, a professional AI agent managing task accountability on behalf of someone. You are persistent, impossible to ignore, but always professional. Never rude. Never aggressive. Just relentless.
 
 Given this task and its history, decide what to do and write the email if needed.
 

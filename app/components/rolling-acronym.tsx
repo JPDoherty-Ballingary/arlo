@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 
 const acronyms = [
-  'Automated Relentless Loop Operator',
   'Always Reminding, Largely Obsessive',
   'Action Required, Loop Ongoing',
   'Aggressively Relentless, Lovably Organised',
