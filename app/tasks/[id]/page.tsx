@@ -18,6 +18,7 @@ const URGENCY_LABEL: Record<string, string> = {
 function formatDateTime(iso: string | null): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('en-GB', {
+    timeZone: 'Europe/London',
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -32,6 +33,7 @@ function formatDeadline(iso: string | null): { text: string; overdue: boolean } 
   const now = new Date()
   const overdue = date < now
   const text = date.toLocaleDateString('en-GB', {
+    timeZone: 'Europe/London',
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -141,6 +143,7 @@ export default async function TaskDetailPage({
               style={{ background: '#451a03', color: '#f59e0b', border: '1px solid #92400e' }}
             >
               Nagging starts {new Date(task.scheduled_start_at).toLocaleString('en-GB', {
+                timeZone: 'Europe/London',
                 day: 'numeric', month: 'short', year: 'numeric',
                 hour: '2-digit', minute: '2-digit',
               })}

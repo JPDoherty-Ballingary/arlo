@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic } from '@/lib/anthropic'
 import { resend } from '@/lib/resend'
+import { EMAIL_LOGO_SVG } from '@/lib/email-logo'
 
 const EMAIL_TEMPLATE = `<!DOCTYPE html>
 <html>
@@ -10,7 +11,6 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
     body { font-family: -apple-system, sans-serif; background: #0a0a0a; margin: 0; padding: 0; }
     .container { max-width: 600px; margin: 0 auto; }
     .header { background: #0a0a0a; padding: 24px 32px; border-bottom: 2px solid #22d45f; }
-    .header h1 { color: #22d45f; margin: 0; font-size: 24px; letter-spacing: 2px; }
     .header p { color: #888; margin: 4px 0 0; font-size: 12px; }
     .body { background: #111111; padding: 32px; }
     .task-title { color: #ffffff; font-size: 20px; font-weight: bold; margin: 0 0 16px; }
@@ -25,7 +25,7 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
 <body>
   <div class="container">
     <div class="header">
-      <h1>ARLO</h1>
+      ${EMAIL_LOGO_SVG}
     </div>
     <div class="body">
       <p class="task-title">{{TASK_TITLE}}</p>
@@ -174,7 +174,7 @@ Given this task and its history, decide what to do and write the email if needed
 
 Task: ${task.title}
 Context: ${task.context || 'No additional context'}
-Deadline: ${task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline set'}
+Deadline: ${task.deadline ? new Date(task.deadline).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short', year: 'numeric' }) : 'No deadline set'}
 Days overdue: ${daysOverdue > 0 ? daysOverdue : 'Not overdue'}
 Nags sent so far: ${task.nag_count}
 Last tone used: ${lastTone}
@@ -271,10 +271,12 @@ Respond ONLY in this exact JSON format with no other text:
           from: 'Arlo <arlo@agent-arlo.com>',
           to: ownerEmail,
           subject: `Arlo: Intervention needed — "${task.title}"`,
-          html: `<div style="font-family:sans-serif;background:#111;color:#ccc;padding:32px;max-width:600px;margin:0 auto;">
-            <h2 style="color:#22d45f;">ARLO</h2>
-            <p>Arlo has attempted to reach <strong>${escapeHtml(task.recipient_name || task.recipient_email)}</strong> ${task.nag_count} time${task.nag_count === 1 ? '' : 's'} regarding <strong>"${escapeHtml(task.title)}"</strong> with no response.</p>
-            <p>You may need to intervene directly.</p>
+          html: `<div style="font-family:sans-serif;background:#0a0a0a;color:#ccc;max-width:600px;margin:0 auto;">
+            <div style="padding:24px 32px;border-bottom:2px solid #22d45f;">${EMAIL_LOGO_SVG}</div>
+            <div style="background:#111;padding:32px;">
+              <p>ARLO has attempted to reach <strong>${escapeHtml(task.recipient_name || task.recipient_email)}</strong> ${task.nag_count} time${task.nag_count === 1 ? '' : 's'} regarding <strong>"${escapeHtml(task.title)}"</strong> with no response.</p>
+              <p>You may need to intervene directly.</p>
+            </div>
           </div>`,
         })
 

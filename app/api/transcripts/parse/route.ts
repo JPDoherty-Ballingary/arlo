@@ -29,8 +29,8 @@ export async function POST(request: Request) {
   }
 
   const now = new Date()
-  const currentDate = now.toISOString().slice(0, 10)
-  const currentDayName = now.toLocaleDateString('en-US', { weekday: 'long' })
+  const currentDate = now.toLocaleDateString('en-CA', { timeZone: 'Europe/London' })
+  const currentDayName = now.toLocaleDateString('en-US', { timeZone: 'Europe/London', weekday: 'long' })
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-5',

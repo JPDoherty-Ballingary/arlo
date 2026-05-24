@@ -29,6 +29,7 @@ function formatDeadline(deadline: string | null): { text: string; overdue: boole
   const now = new Date()
   const daysOverdue = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
   const formatted = date.toLocaleDateString('en-GB', {
+    timeZone: 'Europe/London',
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -61,7 +62,7 @@ export default function TaskCard({ task }: { task: Task }) {
   const scheduledStart = task.scheduled_start_at ? new Date(task.scheduled_start_at) : null
   const isScheduledFuture = scheduledStart && scheduledStart > new Date()
   const scheduledStartLabel = isScheduledFuture
-    ? `Starts ${scheduledStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+    ? `Starts ${scheduledStart.toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short' })}`
     : null
 
   async function updateStatus(status: 'done' | 'paused' | 'active') {

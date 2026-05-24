@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { resend } from '@/lib/resend'
 import { NextResponse } from 'next/server'
+import { EMAIL_LOGO_SVG } from '@/lib/email-logo'
 
 const INTRO_TEMPLATE = `<!DOCTYPE html>
 <html>
@@ -10,7 +11,6 @@ const INTRO_TEMPLATE = `<!DOCTYPE html>
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;margin:0;padding:0}
     .container{max-width:600px;margin:0 auto}
     .header{background:#0a0a0a;padding:24px 32px;border-bottom:2px solid #22d45f}
-    .header h1{color:#22d45f;margin:0;font-size:24px;letter-spacing:2px}
     .body{background:#111111;padding:32px}
     .body-text{color:#cccccc;line-height:1.8;font-size:15px;white-space:pre-wrap}
     .footer{background:#0a0a0a;padding:20px 32px;border-top:1px solid #1a1a1a}
@@ -19,7 +19,7 @@ const INTRO_TEMPLATE = `<!DOCTYPE html>
 </head>
 <body>
   <div class="container">
-    <div class="header"><h1>ARLO</h1></div>
+    <div class="header">${EMAIL_LOGO_SVG}</div>
     <div class="body"><p class="body-text">{{BODY}}</p></div>
     <div class="footer"><p>Sent by ARLO on behalf of {{OWNER_NAME}}.</p></div>
   </div>
@@ -37,15 +37,18 @@ function buildHtml(body: string, ownerName: string): string {
   )
 }
 
+async function getUser(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getUser(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: contact } = await supabase
@@ -75,15 +78,20 @@ export async function POST(
   const isFuture = scheduledTime && scheduledTime > new Date()
 
   if (isFuture) {
-    await supabaseAdmin.from('scheduled_emails').insert({
+    const { error: insertError } = await supabaseAdmin.from('scheduled_emails').insert({
       owner_id: user.id,
       recipient_id: contact.id,
       to_email: contact.email,
-      reply_to: user.email,
+      reply_to: user.email ?? null,
       subject,
       html,
       send_at: scheduledTime.toISOString(),
     })
+
+    if (insertError) {
+      console.error('[introduce] scheduled_emails insert error:', insertError)
+      return NextResponse.json({ error: insertError.message }, { status: 500 })
+    }
 
     await supabaseAdmin
       .from('recipients')
@@ -116,7 +124,7 @@ export async function PATCH(
 ) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getUser(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: contact } = await supabase
@@ -155,20 +163,28 @@ export async function PATCH(
 
   if (isFuture) {
     if (existing) {
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from('scheduled_emails')
         .update({ subject, html, send_at: scheduledTime.toISOString() })
         .eq('id', existing.id)
+      if (updateError) {
+        console.error('[introduce PATCH] update error:', updateError)
+        return NextResponse.json({ error: updateError.message }, { status: 500 })
+      }
     } else {
-      await supabaseAdmin.from('scheduled_emails').insert({
+      const { error: insertError } = await supabaseAdmin.from('scheduled_emails').insert({
         owner_id: user.id,
         recipient_id: contact.id,
         to_email: contact.email,
-        reply_to: user.email,
+        reply_to: user.email ?? null,
         subject,
         html,
         send_at: scheduledTime.toISOString(),
       })
+      if (insertError) {
+        console.error('[introduce PATCH] insert error:', insertError)
+        return NextResponse.json({ error: insertError.message }, { status: 500 })
+      }
     }
     await supabaseAdmin
       .from('recipients')
@@ -177,7 +193,6 @@ export async function PATCH(
     return NextResponse.json({ scheduled: true, send_at: scheduledTime.toISOString() })
   }
 
-  // Send now — delete the pending scheduled row, send immediately
   if (existing) {
     await supabaseAdmin.from('scheduled_emails').delete().eq('id', existing.id)
   }

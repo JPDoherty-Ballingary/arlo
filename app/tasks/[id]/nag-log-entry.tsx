@@ -19,6 +19,7 @@ const TONE_STYLE: Record<string, { label: string }> = {
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('en-GB', {
+    timeZone: 'Europe/London',
     day: 'numeric',
     month: 'short',
     year: 'numeric',

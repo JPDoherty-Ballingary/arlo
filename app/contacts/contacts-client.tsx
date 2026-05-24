@@ -29,17 +29,19 @@ function scoreColor(score: number): string {
 }
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
+  return new Date(iso).toLocaleDateString('en-GB', {
+    timeZone: 'Europe/London',
     day: 'numeric',
+    month: 'short',
     year: 'numeric',
   })
 }
 
 function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short',
+  return new Date(iso).toLocaleString('en-GB', {
+    timeZone: 'Europe/London',
     day: 'numeric',
+    month: 'short',
     hour: '2-digit',
     minute: '2-digit',
   })

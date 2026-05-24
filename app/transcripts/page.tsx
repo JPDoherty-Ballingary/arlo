@@ -16,6 +16,7 @@ type Transcript = {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', {
+    timeZone: 'Europe/London',
     day: 'numeric',
     month: 'short',
     year: 'numeric',
