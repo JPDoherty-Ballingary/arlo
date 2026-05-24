@@ -3,6 +3,12 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic } from '@/lib/anthropic'
 import { resend } from '@/lib/resend'
 
+type FirefliesPayload = {
+  meetingId?: string
+  clientReferenceId?: string
+  eventType?: string
+}
+
 function extractJson(text: string): string {
   return text
     .replace(/^```json\s*/i, '')
@@ -11,112 +17,215 @@ function extractJson(text: string): string {
     .trim()
 }
 
-async function processTranscript(
+async function fetchFirefliesTranscript(
   meetingId: string,
-  ownerId: string,
-  ownerEmail: string,
-  ownerName: string | null,
-) {
-  try {
-    const query = `
-      query Transcript($transcriptId: String!) {
-        transcript(id: $transcriptId) {
-          id
-          title
-          date
-          sentences {
-            speaker_name
-            text
-          }
+  apiKey: string
+): Promise<{ title: string; transcriptText: string } | null> {
+  const query = `
+    query Transcript($id: String!) {
+      transcript(id: $id) {
+        title
+        date
+        sentences {
+          speaker_name
+          text
         }
       }
-    `
-
-    const firefliesResponse = await fetch('https://api.fireflies.ai/graphql', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.FIREFLIES_API_KEY}`,
-      },
-      body: JSON.stringify({ query, variables: { transcriptId: meetingId } }),
-    })
-
-    const firefliesData = (await firefliesResponse.json()) as {
-      data?: { transcript?: { title?: string; sentences?: { speaker_name: string; text: string }[] } }
-      errors?: unknown
     }
+  `
 
-    if (firefliesData.errors) {
-      console.error('[fireflies] GraphQL errors:', JSON.stringify(firefliesData.errors))
+  const res = await fetch('https://api.fireflies.ai/graphql', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ query, variables: { id: meetingId } }),
+  })
+
+  if (!res.ok) {
+    console.error('[fireflies] GraphQL request failed:', res.status, await res.text())
+    return null
+  }
+
+  const json = (await res.json()) as {
+    data?: {
+      transcript?: {
+        title?: string
+        sentences?: { speaker_name: string; text: string }[]
+      }
     }
+    errors?: unknown
+  }
 
-    const transcript = firefliesData?.data?.transcript
+  if (json.errors) {
+    console.error('[fireflies] GraphQL errors:', JSON.stringify(json.errors))
+  }
 
-    if (!transcript) {
-      console.error('[fireflies] no transcript returned for meetingId:', meetingId)
-      return
-    }
+  const transcript = json.data?.transcript
+  if (!transcript) return null
 
-    const transcriptText =
-      transcript.sentences?.map((s) => `${s.speaker_name}: ${s.text}`).join('\n') || ''
+  const sentences = transcript.sentences ?? []
+  const transcriptText = sentences.map((s) => `${s.speaker_name}: ${s.text}`).join('\n')
+  const title = transcript.title || 'Untitled meeting'
 
-    const meetingTitle = transcript.title || 'Untitled meeting'
+  return { title, transcriptText }
+}
 
-    if (!transcriptText) {
-      console.error('[fireflies] empty transcript text for meetingId:', meetingId)
-      return
-    }
+export async function POST(request: Request) {
+  const url = new URL(request.url)
+  const token = url.searchParams.get('token')
 
-    const claudeResponse = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2000,
-      messages: [
-        {
-          role: 'user',
-          content: `Extract all action items from this meeting transcript. Return ONLY a valid JSON array with no other text, no markdown, no backticks, no explanation.
+  if (!token) {
+    return NextResponse.json({ error: 'Missing token' }, { status: 401 })
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, fireflies_api_key')
+    .eq('webhook_token', token)
+    .maybeSingle()
+
+  if (!profile) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+  }
+
+  const ownerId: string = profile.id
+
+  let payload: FirefliesPayload
+  try {
+    payload = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  const meetingId = payload.meetingId
+  console.log('[fireflies] webhook received — meetingId:', meetingId, '| eventType:', payload.eventType)
+
+  // Mark connected on first webhook
+  void supabaseAdmin
+    .from('profiles')
+    .update({ fireflies_connected: true })
+    .eq('id', ownerId)
+
+  after(async () => {
+    try {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(ownerId)
+      const ownerEmail = userData.user?.email
+      if (!ownerEmail) return
+
+      if (!meetingId) {
+        console.log('[fireflies] no meetingId in payload — nothing to fetch')
+        return
+      }
+
+      const apiKey = profile.fireflies_api_key
+      if (!apiKey) {
+        console.log('[fireflies] no API key stored for user — saving empty transcript')
+        await supabaseAdmin.from('transcripts').insert({
+          owner_id: ownerId,
+          meeting_id: meetingId,
+          raw_text: '',
+          parsed_tasks: [],
+          title: 'Untitled meeting',
+        })
+        return
+      }
+
+      const result = await fetchFirefliesTranscript(meetingId, apiKey)
+      if (!result) {
+        console.log('[fireflies] could not fetch transcript from Fireflies API')
+        await supabaseAdmin.from('transcripts').insert({
+          owner_id: ownerId,
+          meeting_id: meetingId,
+          raw_text: '',
+          parsed_tasks: [],
+          title: 'Untitled meeting',
+        })
+        return
+      }
+
+      const { title: meetingTitle, transcriptText } = result
+      console.log('[fireflies] fetched transcript — title:', meetingTitle, '| length:', transcriptText.length)
+
+      if (!transcriptText.trim()) {
+        await supabaseAdmin.from('transcripts').insert({
+          owner_id: ownerId,
+          raw_text: '',
+          parsed_tasks: [],
+          title: meetingTitle,
+        })
+        return
+      }
+
+      const now = new Date()
+      const currentDate = now.toISOString().slice(0, 10)
+      const currentDayName = now.toLocaleDateString('en-US', { weekday: 'long' })
+
+      const aiResponse = await anthropic.messages.create({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 2000,
+        messages: [
+          {
+            role: 'user',
+            content: `Extract all action items from this meeting transcript. Return ONLY a valid JSON array with no other text, no markdown, no backticks, no explanation.
+
+Today is ${currentDayName}, ${currentDate}. Use this as the base date for all deadline calculations.
+
+For suggested_deadline, always provide an absolute ISO 8601 date-time string — never null. Infer a deadline using this priority order:
+1. Explicit date/time mentioned in the transcript (e.g. "by Friday", "end of next week", "in two weeks") — resolve to an absolute date
+2. Strong urgency cues in the conversation (e.g. "window isn't open forever", "time sensitive", "ASAP") — use 1-2 days from today
+3. Otherwise fall back to the urgency level: high → 2 days, medium → 5 days, low → 14 days
+
+Use 17:00:00Z as the time when no specific time is mentioned.
 
 Each item must follow this exact structure:
 {
   "title": "clear specific action item",
-  "context": "relevant context from the transcript",
-  "suggested_deadline": "ISO date string or null",
+  "context": "relevant context from the transcript that would help when following up",
+  "suggested_deadline": "ISO 8601 date-time string",
   "urgency": "low" or "medium" or "high",
-  "recipient_hint": "name or role if mentioned or null"
+  "recipient_hint": "name or role of who should do this if mentioned, or null"
 }
 
 Transcript:
 ${transcriptText}`,
-        },
-      ],
-    })
+          },
+        ],
+      })
 
-    const responseText =
-      claudeResponse.content[0].type === 'text' ? claudeResponse.content[0].text : ''
+      const rawText =
+        aiResponse.content[0].type === 'text' ? aiResponse.content[0].text : '[]'
+      let parsedTasks: unknown[]
+      try {
+        parsedTasks = JSON.parse(extractJson(rawText))
+        if (!Array.isArray(parsedTasks)) parsedTasks = []
+      } catch {
+        parsedTasks = []
+      }
 
-    let parsedTasks: unknown[] = []
-    try {
-      const parsed = JSON.parse(extractJson(responseText))
-      parsedTasks = Array.isArray(parsed) ? parsed : []
-    } catch {
-      parsedTasks = []
-    }
+      const { data: transcript } = await supabaseAdmin
+        .from('transcripts')
+        .insert({
+          owner_id: ownerId,
+          meeting_id: meetingId,
+          raw_text: transcriptText,
+          parsed_tasks: parsedTasks,
+          title: meetingTitle,
+        })
+        .select('id')
+        .single()
 
-    await supabaseAdmin.from('transcripts').insert({
-      owner_id: ownerId,
-      meeting_id: meetingId,
-      raw_text: transcriptText,
-      parsed_tasks: parsedTasks,
-      title: meetingTitle,
-    })
+      if (!transcript) return
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://agent-arlo.com'
-    const taskCount = parsedTasks.length
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://agent-arlo.com'
+      const taskCount = parsedTasks.length
 
-    await resend.emails.send({
-      from: 'Arlo <arlo@agent-arlo.com>',
-      to: ownerEmail,
-      subject: `Arlo: ${taskCount} action item${taskCount !== 1 ? 's' : ''} found in "${meetingTitle}"`,
-      html: `<!DOCTYPE html>
+      await resend.emails.send({
+        from: 'Arlo <arlo@agent-arlo.com>',
+        to: ownerEmail,
+        subject: `Arlo: new action items from "${meetingTitle}"`,
+        html: `<!DOCTYPE html>
 <html>
 <head>
   <style>
@@ -135,7 +244,7 @@ ${transcriptText}`,
   <div class="container">
     <div class="header"><h1>ARLO</h1></div>
     <div class="body">
-      <p>Arlo has parsed your meeting <strong style="color:#ffffff;">&ldquo;${meetingTitle}&rdquo;</strong> and found <strong style="color:#22d45f;">${taskCount} action item${taskCount !== 1 ? 's' : ''}</strong> waiting for your review.</p>
+      <p>Arlo has parsed your meeting <strong style="color:#ffffff;">&ldquo;${meetingTitle}&rdquo;</strong> and found <strong style="color:#22d45f;">${taskCount} action item${taskCount === 1 ? '' : 's'}</strong> waiting for your review.</p>
       <p>Click below to approve them and Arlo will start nagging.</p>
       <p><a href="${appUrl}/transcripts" class="btn">Review action items &rarr;</a></p>
     </div>
@@ -143,52 +252,11 @@ ${transcriptText}`,
   </div>
 </body>
 </html>`,
-    })
-  } catch (error) {
-    console.error('[fireflies] error processing transcript:', error)
-  }
-}
+      })
+    } catch (err) {
+      console.error('[fireflies] processing error:', err)
+    }
+  })
 
-export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const token = searchParams.get('token')
-
-  if (!token) {
-    return NextResponse.json({ error: 'Missing token' }, { status: 401 })
-  }
-
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('id, display_name')
-    .eq('webhook_token', token)
-    .maybeSingle()
-
-  if (!profile) {
-    return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-  }
-
-  let body: { meetingId?: string; eventType?: string }
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-  }
-
-  const meetingId = body.meetingId
-  console.log('[fireflies] webhook received — meetingId:', meetingId, '| eventType:', body.eventType)
-
-  if (!meetingId) {
-    return NextResponse.json({ ok: true })
-  }
-
-  const { data: userData } = await supabaseAdmin.auth.admin.getUserById(profile.id)
-  const ownerEmail = userData.user?.email
-
-  if (!ownerEmail) {
-    return NextResponse.json({ ok: true })
-  }
-
-  after(() => processTranscript(meetingId, profile.id, ownerEmail, profile.display_name ?? null))
-
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ received: true })
 }
