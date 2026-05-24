@@ -25,6 +25,16 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Supabase ignores redirectTo when it contains a query string, so password
+  // reset codes land at /?code=... — forward them to the real callback route.
+  const code = request.nextUrl.searchParams.get('code')
+  if (code && request.nextUrl.pathname === '/') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/callback'
+    url.searchParams.set('next', '/reset-password')
+    return NextResponse.redirect(url)
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -44,5 +54,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/transcripts/:path*', '/tasks/:path*'],
+  matcher: ['/', '/dashboard/:path*', '/transcripts/:path*', '/tasks/:path*'],
 }
