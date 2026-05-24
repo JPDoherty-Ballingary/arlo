@@ -10,8 +10,17 @@ type FirefliesSentence = {
 
 type FirefliesPayload = {
   meetingId?: string
+  eventType?: string
+  // Real Fireflies shape: data.transcript.*
+  data?: {
+    transcript?: {
+      title?: string
+      date?: string
+      sentences?: FirefliesSentence[]
+    }
+  }
+  // Simplified shape (used in tests / spec)
   title?: string
-  date?: string
   transcript?: {
     sentences?: FirefliesSentence[]
   }
@@ -52,12 +61,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const sentences = payload.transcript?.sentences ?? []
+  // Support both real Fireflies shape (data.transcript.*) and simplified test shape
+  const transcriptData = payload.data?.transcript ?? payload.transcript
+  const sentences = transcriptData?.sentences ?? []
   const transcriptText = sentences
     .map((s) => `${s.speaker_name}: ${s.text}`)
     .join('\n')
 
-  const meetingTitle = payload.title || 'Untitled meeting'
+  const meetingTitle =
+    payload.data?.transcript?.title ?? payload.title ?? 'Untitled meeting'
 
   // Mark connected on first webhook
   void supabaseAdmin
