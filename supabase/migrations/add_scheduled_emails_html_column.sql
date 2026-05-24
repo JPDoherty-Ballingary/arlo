@@ -1,5 +1,7 @@
 -- Patch scheduled_emails to add all columns the application expects.
 -- Safe to re-run — IF NOT EXISTS means existing columns are left untouched.
+ALTER TABLE scheduled_emails ALTER COLUMN body DROP NOT NULL;
+
 ALTER TABLE scheduled_emails
   ADD COLUMN IF NOT EXISTS owner_id     UUID        REFERENCES auth.users(id) ON DELETE CASCADE,
   ADD COLUMN IF NOT EXISTS recipient_id UUID        REFERENCES recipients(id) ON DELETE SET NULL,
