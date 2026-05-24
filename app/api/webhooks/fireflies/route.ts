@@ -22,10 +22,10 @@ async function fetchFirefliesTranscript(
   apiKey: string
 ): Promise<{ title: string; transcriptText: string } | null> {
   const query = `
-    query Transcript($id: String!) {
-      transcript(id: $id) {
+    query Transcript($transcriptId: String!) {
+      transcript(id: $transcriptId) {
+        id
         title
-        date
         sentences {
           speaker_name
           text
@@ -40,7 +40,7 @@ async function fetchFirefliesTranscript(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ query, variables: { id: meetingId } }),
+    body: JSON.stringify({ query, variables: { transcriptId: meetingId } }),
   })
 
   if (!res.ok) {
