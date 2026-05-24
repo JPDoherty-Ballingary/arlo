@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import ThemeToggle from '@/app/components/theme-toggle'
+import Logo from '@/app/components/logo'
 
 const FREQUENCY_OPTIONS = [
   { label: 'Every 4 hours', value: 4 },
@@ -103,8 +104,8 @@ export default function NewTaskPage() {
         className="px-6 py-4 flex items-center justify-between"
         style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
       >
-        <Link href="/dashboard" className="font-bold text-lg" style={{ color: '#22d45f', letterSpacing: '-0.02em' }}>
-          ARLO
+        <Link href="/dashboard">
+          <Logo className="h-8 w-auto" />
         </Link>
         <ThemeToggle />
       </nav>

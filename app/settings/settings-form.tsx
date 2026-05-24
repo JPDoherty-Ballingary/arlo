@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://agent-arlo.com'
+
 const FREQUENCY_OPTIONS = [
   { label: 'Every 4 hours', value: 4 },
   { label: 'Every 8 hours', value: 8 },
@@ -22,10 +24,12 @@ export default function SettingsForm({
   userId,
   userEmail,
   profile,
+  webhookToken,
 }: {
   userId: string
   userEmail: string
   profile: Profile | null
+  webhookToken: string | null
 }) {
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '')
   const [frequency, setFrequency] = useState(profile?.default_frequency_hours ?? 24)
@@ -33,6 +37,19 @@ export default function SettingsForm({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const webhookUrl = webhookToken
+    ? `${APP_URL}/api/webhooks/fireflies?token=${webhookToken}`
+    : null
+
+  function handleCopy() {
+    if (!webhookUrl) return
+    navigator.clipboard.writeText(webhookUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -152,6 +169,76 @@ export default function SettingsForm({
           </div>
         </div>
       </section>
+
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid var(--border)' }} />
+
+      {/* Integrations section */}
+      <section>
+        <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+          Integrations
+        </h2>
+
+        <div
+          className="rounded-lg p-5 mt-4"
+          style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+        >
+          <p className="font-medium text-sm mb-1" style={{ color: 'var(--text-primary)' }}>
+            Fireflies.ai
+          </p>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+            Connect Fireflies to automatically import meeting transcripts into Arlo. No manual
+            pasting required.
+          </p>
+
+          {webhookUrl ? (
+            <>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                Your personal webhook URL
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={webhookUrl}
+                  className="arlo-input text-xs font-mono flex-1 cursor-text select-all"
+                  style={{ color: 'var(--text-faint)' }}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="btn-green px-4 py-2 rounded-md text-sm font-semibold shrink-0 transition-all"
+                  style={{ minWidth: 90 }}
+                >
+                  {copied ? 'Copied ✓' : 'Copy'}
+                </button>
+              </div>
+
+              <ol className="mt-5 flex flex-col gap-1.5 list-decimal list-inside">
+                {[
+                  'Copy your webhook URL above',
+                  'Go to fireflies.ai → Settings → Webhooks',
+                  'Add a new webhook and paste your URL',
+                  'Select trigger: "Transcription complete"',
+                  'Save — Arlo will now automatically receive your meeting transcripts',
+                ].map((step, i) => (
+                  <li key={i} className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+              Webhook URL not available — try refreshing the page.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid var(--border)' }} />
 
       {/* Save */}
       <div className="flex items-center gap-4">

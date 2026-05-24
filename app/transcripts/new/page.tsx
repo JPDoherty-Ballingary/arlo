@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import ThemeToggle from '@/app/components/theme-toggle'
+import Logo from '@/app/components/logo'
 
 type Recipient = {
   id: string
@@ -247,15 +248,23 @@ export default function TranscriptsNewPage() {
         className="px-6 py-4 flex items-center justify-between"
         style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
       >
-        <Link href="/dashboard" className="font-bold text-lg" style={{ color: '#22d45f', letterSpacing: '-0.02em' }}>
-          ARLO
+        <Link href="/dashboard">
+          <Logo className="h-8 w-auto" />
         </Link>
         <ThemeToggle />
       </nav>
 
       <main className="max-w-3xl mx-auto px-6 py-12">
+        <p className="text-sm mb-6" style={{ color: 'var(--text-faint)' }}>
+          Or{' '}
+          <Link href="/settings" className="hover:underline" style={{ color: '#22d45f' }}>
+            connect Fireflies in Settings
+          </Link>{' '}
+          to import transcripts automatically →
+        </p>
+
         <h1 className="text-2xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>
-          Parse transcript
+          Paste a transcript manually
         </h1>
 
         <form onSubmit={handleParse} className="flex flex-col gap-4">
