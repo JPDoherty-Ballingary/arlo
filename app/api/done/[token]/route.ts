@@ -44,17 +44,17 @@ export async function POST(
       from: 'ARLO <arlo@agent-arlo.com>',
       to: ownerEmail,
       subject: `ARLO: ${recipientName} is claiming "${task.title}" is done`,
-      html: `<div style="font-family:sans-serif;background:#0a0a0a;color:#ccc;max-width:600px;margin:0 auto;">
-        <div style="padding:24px 32px;border-bottom:2px solid #22d45f;">${EMAIL_LOGO_SVG}</div>
-        <div style="background:#111;padding:32px;">
-          <p>Hey ${firstName},</p>
-          <p><strong style="color:#fff;">${recipientName}</strong> is claiming that <strong style="color:#fff;">"${task.title}"</strong> is done.</p>
-          <p>Go to your ARLO dashboard to confirm and close out this task.</p>
-          <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="display:inline-block;margin-top:16px;background:#22d45f;color:#000;padding:12px 24px;text-decoration:none;font-weight:bold;">
-            Go to dashboard →
-          </a>
+      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff;">
+          <div style="padding:32px 40px;border-bottom:2px solid #22d45f;text-align:center;">${EMAIL_LOGO_SVG}</div>
+          <div style="padding:36px 40px;">
+            <p style="color:#111827;font-size:15px;line-height:1.7;margin:0 0 12px;">Hey ${firstName},</p>
+            <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;"><strong style="color:#111827;">${recipientName}</strong> is claiming that <strong style="color:#111827;">&ldquo;${task.title}&rdquo;</strong> is done.</p>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="display:inline-block;background:#22d45f;color:#000;padding:12px 24px;text-decoration:none;font-weight:bold;border-radius:6px;">Go to dashboard →</a>
+          </div>
+          <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;"><p style="color:#9ca3af;font-size:11px;margin:0;">Sent by ARLO.</p></div>
         </div>
-      </div>`,
+      </body></html>`,
     })
   }
 

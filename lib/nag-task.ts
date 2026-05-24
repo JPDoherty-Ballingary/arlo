@@ -7,17 +7,17 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
 <html>
 <head>
   <style>
-    body { font-family: -apple-system, sans-serif; background: #0a0a0a; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 0 auto; }
-    .header { background: #0a0a0a; padding: 24px 32px; border-bottom: 2px solid #22d45f; }
-    .body { background: #111111; padding: 32px; }
-    .task-title { color: #ffffff; font-size: 20px; font-weight: bold; margin: 0 0 16px; }
-    .body-text { color: #cccccc; line-height: 1.6; white-space: pre-wrap; }
-    .buttons { margin: 32px 0 0; display: flex; gap: 12px; flex-direction: column; }
-    .btn-done { display: inline-block; background: #22d45f; color: #000000; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 15px; }
-    .footer { background: #0a0a0a; padding: 20px 32px; border-top: 1px solid #1a1a1a; }
-    .footer p { color: #555; font-size: 11px; margin: 0; line-height: 1.6; }
-    .unsubscribe { color: #555; font-size: 11px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; }
+    .header { background: #ffffff; padding: 32px 40px; border-bottom: 2px solid #22d45f; text-align: center; }
+    .body { background: #ffffff; padding: 36px 40px; }
+    .task-title { color: #111827; font-size: 20px; font-weight: bold; margin: 0 0 16px; }
+    .body-text { color: #374151; line-height: 1.7; white-space: pre-wrap; font-size: 15px; }
+    .buttons { margin: 32px 0 0; }
+    .btn-done { display: inline-block; background: #22d45f; color: #000000; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 15px; border-radius: 6px; }
+    .footer { background: #f9fafb; padding: 20px 40px; border-top: 1px solid #e5e7eb; }
+    .footer p { color: #9ca3af; font-size: 11px; margin: 0; line-height: 1.6; }
+    .unsubscribe { color: #9ca3af; font-size: 11px; }
   </style>
 </head>
 <body>
@@ -32,7 +32,7 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
     </div>
     <div class="footer">
       <p>This reminder was sent by ARLO on behalf of {{OWNER_NAME}}.</p>
-      <p style="margin-top: 8px;"><a href="{{UNSUBSCRIBE_LINK}}" class="unsubscribe">Unsubscribe from these reminders</a></p>
+      <p style="margin-top: 6px;"><a href="{{UNSUBSCRIBE_LINK}}" class="unsubscribe">Unsubscribe from these reminders</a></p>
     </div>
   </div>
 </body>
@@ -188,13 +188,16 @@ Respond ONLY in this exact JSON format with no other text:
       from: 'Arlo <arlo@agent-arlo.com>',
       to: ownerEmail,
       subject: `ARLO: Intervention needed — "${task.title}"`,
-      html: `<div style="font-family:sans-serif;background:#0a0a0a;color:#ccc;max-width:600px;margin:0 auto;">
-        <div style="padding:24px 32px;border-bottom:2px solid #22d45f;">${EMAIL_LOGO_SVG}</div>
-        <div style="background:#111;padding:32px;">
-          <p>ARLO has attempted to reach <strong>${escapeHtml(task.recipient_name || task.recipient_email)}</strong> ${task.nag_count} time${task.nag_count === 1 ? '' : 's'} regarding <strong>"${escapeHtml(task.title)}"</strong> with no response.</p>
-          <p>You may need to intervene directly.</p>
+      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff;">
+          <div style="padding:32px 40px;border-bottom:2px solid #22d45f;text-align:center;">${EMAIL_LOGO_SVG}</div>
+          <div style="padding:36px 40px;">
+            <p style="color:#111827;font-size:15px;line-height:1.7;margin:0 0 12px;">ARLO has attempted to reach <strong>${escapeHtml(task.recipient_name || task.recipient_email)}</strong> ${task.nag_count} time${task.nag_count === 1 ? '' : 's'} regarding <strong>&ldquo;${escapeHtml(task.title)}&rdquo;</strong> with no response.</p>
+            <p style="color:#374151;font-size:15px;line-height:1.7;margin:0;">You may need to intervene directly.</p>
+          </div>
+          <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;"><p style="color:#9ca3af;font-size:11px;margin:0;">Sent by ARLO.</p></div>
         </div>
-      </div>`,
+      </body></html>`,
     })
     await supabaseAdmin.from('tasks').update({ status: 'paused' }).eq('id', task.id)
     return { action: 'notify_owner', reason: decision.reason }

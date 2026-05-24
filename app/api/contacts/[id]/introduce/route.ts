@@ -8,13 +8,13 @@ const INTRO_TEMPLATE = `<!DOCTYPE html>
 <html>
 <head>
   <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;margin:0;padding:0}
-    .container{max-width:600px;margin:0 auto}
-    .header{background:#0a0a0a;padding:24px 32px;border-bottom:2px solid #22d45f}
-    .body{background:#111111;padding:32px}
-    .body-text{color:#cccccc;line-height:1.8;font-size:15px;white-space:pre-wrap}
-    .footer{background:#0a0a0a;padding:20px 32px;border-top:1px solid #1a1a1a}
-    .footer p{color:#555;font-size:11px;margin:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f3f4f6;margin:0;padding:0}
+    .container{max-width:600px;margin:0 auto;background:#ffffff}
+    .header{background:#ffffff;padding:32px 40px;border-bottom:2px solid #22d45f;text-align:center}
+    .body{background:#ffffff;padding:36px 40px}
+    .body-text{color:#374151;line-height:1.8;font-size:15px;white-space:pre-wrap;margin:0}
+    .footer{background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb}
+    .footer p{color:#9ca3af;font-size:11px;margin:0}
   </style>
 </head>
 <body>
