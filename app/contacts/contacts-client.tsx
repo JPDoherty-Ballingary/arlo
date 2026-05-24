@@ -588,6 +588,7 @@ function EditScheduledIntroModal({
       .then((r) => r.json())
       .then((data) => {
         if (data?.subject) setSubject(data.subject)
+        if (data?.body_text) setBody(data.body_text)
         if (data?.send_at) setScheduleAt(new Date(data.send_at).toISOString().slice(0, 16))
         setLoading(false)
       })
@@ -643,10 +644,7 @@ function EditScheduledIntroModal({
             />
           </Field>
 
-          <Field
-            label="Message"
-            hint="The original message text wasn't stored — re-edit below or keep the default."
-          >
+          <Field label="Message">
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}

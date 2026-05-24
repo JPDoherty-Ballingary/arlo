@@ -2,6 +2,16 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
+function extractBodyText(html: string): string {
+  const match = html.match(/<p class="body-text">([\s\S]*?)<\/p>/)
+  if (!match) return ''
+  return match[1]
+    .replace(/&quot;/g, '"')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -21,12 +31,19 @@ export async function GET(
 
   const { data: scheduled } = await supabaseAdmin
     .from('scheduled_emails')
-    .select('id, subject, send_at')
+    .select('id, subject, html, send_at')
     .eq('recipient_id', id)
     .eq('sent', false)
     .order('send_at', { ascending: true })
     .limit(1)
     .maybeSingle()
 
-  return NextResponse.json(scheduled ?? null)
+  if (!scheduled) return NextResponse.json(null)
+
+  return NextResponse.json({
+    id: scheduled.id,
+    subject: scheduled.subject,
+    send_at: scheduled.send_at,
+    body_text: extractBodyText(scheduled.html),
+  })
 }
