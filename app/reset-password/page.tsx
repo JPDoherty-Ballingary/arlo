@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ThemeToggle from '@/app/components/theme-toggle'
+import Logo from '@/app/components/logo'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -43,8 +44,8 @@ export default function ResetPasswordPage() {
 
       <div className="w-full max-w-sm">
         <div className="mb-8">
-          <Link href="/" className="text-xl font-bold" style={{ color: '#22d45f', letterSpacing: '-0.02em' }}>
-            ARLO
+          <Link href="/">
+            <Logo className="h-8 w-auto" />
           </Link>
           <h1 className="mt-6 text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
             Choose a new password

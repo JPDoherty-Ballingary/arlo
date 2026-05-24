@@ -15,6 +15,7 @@ type Task = {
   nag_count: number
   last_nagged_at: string | null
   owner_notified_of_claim: boolean
+  scheduled_start_at: string | null
 }
 
 export default function DashboardTabs({ tasks }: { tasks: Task[] }) {

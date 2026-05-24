@@ -1,11 +1,13 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import ThemeToggle from '@/app/components/theme-toggle'
-import Logo from '@/app/components/logo'
+import AppNav from '@/app/components/app-nav'
 import TaskActions from './task-actions'
 import NagLogEntry from './nag-log-entry'
+
+export const metadata: Metadata = { title: 'Task' }
 
 const URGENCY_LABEL: Record<string, string> = {
   low: 'Low',
@@ -84,15 +86,7 @@ export default async function TaskDetailPage({
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <nav
-        className="px-6 py-4 flex items-center justify-between"
-        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
-      >
-        <Link href="/dashboard">
-          <Logo className="h-8 w-auto" />
-        </Link>
-        <ThemeToggle />
-      </nav>
+      <AppNav userEmail={user.email} />
 
       <main className="max-w-3xl mx-auto px-6 py-12">
         {/* Back */}
@@ -139,6 +133,19 @@ export default async function TaskDetailPage({
               task.recipient_email
             )}
           </p>
+
+          {/* Scheduled start notice */}
+          {task.scheduled_start_at && new Date(task.scheduled_start_at) > new Date() && (
+            <div
+              className="rounded-md px-4 py-3 mb-4 text-sm font-medium"
+              style={{ background: '#451a03', color: '#f59e0b', border: '1px solid #92400e' }}
+            >
+              Nagging starts {new Date(task.scheduled_start_at).toLocaleString('en-GB', {
+                day: 'numeric', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </div>
+          )}
 
           {/* Meta grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">

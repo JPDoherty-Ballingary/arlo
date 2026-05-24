@@ -1,10 +1,10 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import SignOutButton from './sign-out-button'
+import AppNav from '@/app/components/app-nav'
 import DashboardTabs from './dashboard-tabs'
-import ThemeToggle from '@/app/components/theme-toggle'
-import Logo from '@/app/components/logo'
+
+export const metadata: Metadata = { title: 'Dashboard' }
 
 type Recipient = {
   id: string
@@ -46,50 +46,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <nav
-        className="px-6 py-4 flex items-center justify-between"
-        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
-      >
-        <Logo className="h-8 w-auto" />
-        <div className="flex items-center gap-3">
-          <Link
-            href="/contacts"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Contacts
-          </Link>
-          <Link
-            href="/transcripts"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Transcripts
-          </Link>
-          <Link
-            href="/transcripts/new"
-            className="btn-green-outline px-3 py-1.5 text-sm font-semibold rounded-md"
-          >
-            New transcript
-          </Link>
-          <Link href="/tasks/new" className="btn-green px-3 py-1.5 text-sm font-semibold rounded-md">
-            New task
-          </Link>
-          <Link
-            href="/settings"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={undefined}
-          >
-            Settings
-          </Link>
-          <ThemeToggle />
-          <span className="text-sm hidden sm:block" style={{ color: 'var(--text-muted)' }}>
-            {user.email}
-          </span>
-          <SignOutButton />
-        </div>
-      </nav>
+      <AppNav userEmail={user.email} />
 
       <main className="max-w-5xl mx-auto px-6 py-12 flex flex-col gap-12">
         {/* Tasks section */}

@@ -1,9 +1,11 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import Logo from '@/app/components/logo'
-import ThemeToggle from '@/app/components/theme-toggle'
+import AppNav from '@/app/components/app-nav'
 import ReviewClient from './review-client'
+
+export const metadata: Metadata = { title: 'Transcript' }
 
 type Recipient = {
   id: string
@@ -57,15 +59,7 @@ export default async function TranscriptDetailPage({
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <nav
-        className="px-6 py-4 flex items-center justify-between"
-        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
-      >
-        <Link href="/dashboard">
-          <Logo className="h-8 w-auto" />
-        </Link>
-        <ThemeToggle />
-      </nav>
+      <AppNav userEmail={user.email} />
 
       <main className="max-w-3xl mx-auto px-6 py-12">
         <Link

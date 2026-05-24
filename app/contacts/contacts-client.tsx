@@ -2,9 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Logo from '@/app/components/logo'
-import ThemeToggle from '@/app/components/theme-toggle'
-import SignOutButton from '@/app/dashboard/sign-out-button'
 
 type Contact = {
   id: string
@@ -23,7 +20,6 @@ type Contact = {
 type Props = {
   initialContacts: Contact[]
   ownerDisplayName: string
-  ownerEmail: string
 }
 
 function scoreColor(score: number): string {
@@ -533,7 +529,7 @@ function IntroduceModal({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function ContactsClient({ initialContacts, ownerDisplayName, ownerEmail }: Props) {
+export default function ContactsClient({ initialContacts, ownerDisplayName }: Props) {
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [showAdd, setShowAdd] = useState(false)
   const [editContact, setEditContact] = useState<Contact | null>(null)
@@ -568,55 +564,7 @@ export default function ContactsClient({ initialContacts, ownerDisplayName, owne
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      {/* Nav */}
-      <nav
-        className="px-6 py-4 flex items-center justify-between"
-        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
-      >
-        <Link href="/dashboard">
-          <Logo className="h-8 w-auto" />
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/contacts"
-            className="text-sm font-medium transition-colors"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            Contacts
-          </Link>
-          <Link
-            href="/transcripts"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Transcripts
-          </Link>
-          <Link href="/tasks/new" className="btn-green px-3 py-1.5 text-sm font-semibold rounded-md">
-            New task
-          </Link>
-          <Link
-            href="/settings"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Settings
-          </Link>
-          <ThemeToggle />
-          <span className="text-sm hidden sm:block" style={{ color: 'var(--text-muted)' }}>
-            {ownerEmail}
-          </span>
-          <SignOutButton />
-        </div>
-      </nav>
-
+    <>
       {/* Main */}
       <main className="max-w-5xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-8">
@@ -683,6 +631,6 @@ export default function ContactsClient({ initialContacts, ownerDisplayName, owne
           onScheduled={(sendAt) => handleIntroScheduled(introduceContact.id, sendAt)}
         />
       )}
-    </div>
+    </>
   )
 }

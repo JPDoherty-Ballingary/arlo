@@ -4,8 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import ThemeToggle from '@/app/components/theme-toggle'
-import Logo from '@/app/components/logo'
+import AppNav from '@/app/components/app-nav'
 
 type Contact = { id: string; email: string; name: string | null }
 
@@ -42,6 +41,7 @@ export default function NewTaskPage() {
   const router = useRouter()
   const [urgency, setUrgency] = useState<Urgency>('medium')
   const [frequency, setFrequency] = useState(24)
+  const [scheduledStart, setScheduledStart] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -139,6 +139,7 @@ export default function NewTaskPage() {
       urgency,
       deadline: deadline ? new Date(deadline).toISOString() : null,
       frequency_hours: frequency,
+      scheduled_start_at: scheduledStart ? new Date(scheduledStart).toISOString() : null,
     }
 
     const res = await fetch('/api/tasks', {
@@ -159,15 +160,7 @@ export default function NewTaskPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <nav
-        className="px-6 py-4 flex items-center justify-between"
-        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
-      >
-        <Link href="/dashboard">
-          <Logo className="h-8 w-auto" />
-        </Link>
-        <ThemeToggle />
-      </nav>
+      <AppNav />
 
       <main className="max-w-xl mx-auto px-6 py-12">
         <h1 className="text-2xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>
@@ -330,6 +323,24 @@ export default function NewTaskPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Scheduled start */}
+          <div>
+            <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
+              Start nagging from{' '}
+              <span style={{ color: 'var(--text-faint)' }}>(optional)</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={scheduledStart}
+              onChange={(e) => setScheduledStart(e.target.value)}
+              className="arlo-input"
+              style={{ colorScheme: 'light dark' }}
+            />
+            <p className="mt-1 text-xs" style={{ color: 'var(--text-faint)' }}>
+              Leave blank to start immediately.
+            </p>
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}

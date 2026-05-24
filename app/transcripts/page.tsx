@@ -1,9 +1,10 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import Logo from '@/app/components/logo'
-import ThemeToggle from '@/app/components/theme-toggle'
-import SignOutButton from '@/app/dashboard/sign-out-button'
+import AppNav from '@/app/components/app-nav'
+
+export const metadata: Metadata = { title: 'Transcripts' }
 
 type Transcript = {
   id: string
@@ -40,30 +41,7 @@ export default async function TranscriptsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <nav
-        className="px-6 py-4 flex items-center justify-between"
-        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
-      >
-        <Link href="/dashboard">
-          <Logo className="h-8 w-auto" />
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/transcripts/new"
-            className="btn-green-outline px-3 py-1.5 text-sm font-semibold rounded-md"
-          >
-            New transcript
-          </Link>
-          <Link href="/tasks/new" className="btn-green px-3 py-1.5 text-sm font-semibold rounded-md">
-            New task
-          </Link>
-          <Link href="/settings" className="text-sm transition-colors" style={{ color: 'var(--text-muted)' }}>
-            Settings
-          </Link>
-          <ThemeToggle />
-          <SignOutButton />
-        </div>
-      </nav>
+      <AppNav userEmail={user.email} />
 
       <main className="max-w-3xl mx-auto px-6 py-12">
         <h1 className="text-2xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>

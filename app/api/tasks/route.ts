@@ -23,6 +23,8 @@ export async function POST(request: Request) {
     )
   }
 
+  const { scheduled_start_at } = body
+
   const { data: task, error: taskError } = await supabase
     .from('tasks')
     .insert({
@@ -34,6 +36,7 @@ export async function POST(request: Request) {
       urgency: urgency || 'medium',
       deadline: deadline || null,
       frequency_hours: frequency_hours || 24,
+      scheduled_start_at: scheduled_start_at || null,
     })
     .select()
     .single()

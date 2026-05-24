@@ -88,6 +88,7 @@ export async function GET(request: Request) {
 
   const now = Date.now()
   const dueTasks = (allActiveTasks || []).filter((task) => {
+    if (task.scheduled_start_at && new Date(task.scheduled_start_at).getTime() > now) return false
     if (!task.last_nagged_at) return true
     const nextNagAt =
       new Date(task.last_nagged_at).getTime() + task.frequency_hours * 3600 * 1000

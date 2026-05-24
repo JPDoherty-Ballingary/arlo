@@ -1,6 +1,10 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import AppNav from '@/app/components/app-nav'
 import ContactsClient from './contacts-client'
+
+export const metadata: Metadata = { title: 'Contacts' }
 
 export default async function ContactsPage() {
   const supabase = await createClient()
@@ -34,10 +38,12 @@ export default async function ContactsPage() {
   }))
 
   return (
-    <ContactsClient
-      initialContacts={contacts}
-      ownerDisplayName={profile?.display_name ?? ''}
-      ownerEmail={user.email ?? ''}
-    />
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <AppNav userEmail={user.email} />
+      <ContactsClient
+        initialContacts={contacts}
+        ownerDisplayName={profile?.display_name ?? ''}
+      />
+    </div>
   )
 }

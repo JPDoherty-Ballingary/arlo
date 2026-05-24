@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import ThemeToggle from '@/app/components/theme-toggle'
-import Logo from '@/app/components/logo'
+import AppNav from '@/app/components/app-nav'
 
 type Recipient = {
   id: string
@@ -244,15 +243,7 @@ export default function TranscriptsNewPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <nav
-        className="px-6 py-4 flex items-center justify-between"
-        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
-      >
-        <Link href="/dashboard">
-          <Logo className="h-8 w-auto" />
-        </Link>
-        <ThemeToggle />
-      </nav>
+      <AppNav />
 
       <main className="max-w-3xl mx-auto px-6 py-12">
 

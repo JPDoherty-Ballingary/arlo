@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ARLO — he chases, you decide",
+  title: {
+    default: 'Arlo',
+    template: 'Arlo — %s',
+  },
   description: "Add a task, assign it to someone, set a reminder. ARLO emails them until it's done. You decide when that is.",
 };
 

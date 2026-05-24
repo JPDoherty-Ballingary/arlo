@@ -14,6 +14,7 @@ type Task = {
   nag_count: number
   last_nagged_at: string | null
   owner_notified_of_claim: boolean
+  scheduled_start_at: string | null
 }
 
 const URGENCY_BADGE: Record<string, { label: string }> = {
@@ -56,6 +57,12 @@ export default function TaskCard({ task }: { task: Task }) {
   const deadline = formatDeadline(task.deadline)
   const lastNagged = formatLastNagged(task.last_nagged_at)
   const isPaused = task.status === 'paused'
+
+  const scheduledStart = task.scheduled_start_at ? new Date(task.scheduled_start_at) : null
+  const isScheduledFuture = scheduledStart && scheduledStart > new Date()
+  const scheduledStartLabel = isScheduledFuture
+    ? `Starts ${scheduledStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+    : null
 
   async function updateStatus(status: 'done' | 'paused' | 'active') {
     setPending(true)
@@ -132,11 +139,15 @@ export default function TaskCard({ task }: { task: Task }) {
             {deadline.text}
           </span>
         )}
-        <span>
-          {task.nag_count === 0
-            ? 'Not yet nagged'
-            : `Nagged ${task.nag_count} time${task.nag_count === 1 ? '' : 's'}`}
-        </span>
+        {scheduledStartLabel ? (
+          <span style={{ color: '#f59e0b' }}>{scheduledStartLabel}</span>
+        ) : (
+          <span>
+            {task.nag_count === 0
+              ? 'Not yet nagged'
+              : `Nagged ${task.nag_count} time${task.nag_count === 1 ? '' : 's'}`}
+          </span>
+        )}
         <span>{lastNagged}</span>
       </div>
 
