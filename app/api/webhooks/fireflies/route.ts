@@ -124,6 +124,7 @@ export async function POST(request: Request) {
         console.log('[fireflies] no API key stored for user — saving empty transcript')
         await supabaseAdmin.from('transcripts').insert({
           owner_id: ownerId,
+          meeting_id: meetingId,
           raw_text: '',
           parsed_tasks: [],
           title: 'Untitled meeting',
@@ -136,6 +137,7 @@ export async function POST(request: Request) {
         console.log('[fireflies] could not fetch transcript from Fireflies API')
         await supabaseAdmin.from('transcripts').insert({
           owner_id: ownerId,
+          meeting_id: meetingId,
           raw_text: '',
           parsed_tasks: [],
           title: 'Untitled meeting',
@@ -206,6 +208,7 @@ ${transcriptText}`,
         .from('transcripts')
         .insert({
           owner_id: ownerId,
+          meeting_id: meetingId,
           raw_text: transcriptText,
           parsed_tasks: parsedTasks,
           title: meetingTitle,

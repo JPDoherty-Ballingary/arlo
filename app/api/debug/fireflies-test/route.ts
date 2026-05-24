@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     // List recent transcripts to find a meetingId to test with
     const { data: transcripts } = await supabaseAdmin
       .from('transcripts')
-      .select('id, title, raw_text, created_at')
+      .select('id, title, raw_text, meeting_id, created_at')
       .eq('owner_id', user.id)
       .order('created_at', { ascending: false })
       .limit(5)
@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     result.transcripts = transcripts?.map((t) => ({
       id: t.id,
       title: t.title,
+      meeting_id: t.meeting_id ?? null,
       raw_text_length: t.raw_text?.length ?? 0,
       created_at: t.created_at,
     }))
