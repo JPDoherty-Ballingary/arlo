@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://agent-arlo.com'
 
 const FREQUENCY_OPTIONS = [
   { label: 'Every 4 hours', value: 4 },
@@ -40,7 +39,7 @@ export default function SettingsForm({
   const [copied, setCopied] = useState(false)
 
   const webhookUrl = webhookToken
-    ? `${APP_URL}/api/webhooks/fireflies?token=${webhookToken}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/fireflies?token=${webhookToken}`
     : null
 
   function handleCopy() {
