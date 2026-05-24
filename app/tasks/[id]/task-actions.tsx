@@ -2,20 +2,29 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import TaskEditForm from './task-edit-form'
 
-export default function TaskActions({
-  taskId,
-  status,
-}: {
-  taskId: string
+type Task = {
+  id: string
+  title: string
+  context: string | null
+  recipient_email: string
+  recipient_name: string | null
+  urgency: 'low' | 'medium' | 'high'
+  deadline: string | null
+  frequency_hours: number
+  scheduled_start_at: string | null
   status: 'active' | 'paused' | 'done'
-}) {
+}
+
+export default function TaskActions({ task }: { task: Task }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   async function updateStatus(newStatus: 'done' | 'paused' | 'active') {
     setPending(true)
-    await fetch(`/api/tasks/${taskId}`, {
+    await fetch(`/api/tasks/${task.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
@@ -24,12 +33,22 @@ export default function TaskActions({
     setPending(false)
   }
 
-  if (status === 'done') return null
+  if (task.status === 'done') return null
 
-  const isPaused = status === 'paused'
+  if (editing) {
+    return (
+      <TaskEditForm
+        task={task}
+        onCancel={() => setEditing(false)}
+        onSaved={() => { setEditing(false); router.refresh() }}
+      />
+    )
+  }
+
+  const isPaused = task.status === 'paused'
 
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-3 flex-wrap">
       <button
         onClick={() => updateStatus('done')}
         disabled={pending}
@@ -52,6 +71,22 @@ export default function TaskActions({
         }}
       >
         {isPaused ? 'Resume' : 'Pause'}
+      </button>
+      <button
+        onClick={() => setEditing(true)}
+        disabled={pending}
+        className="px-5 py-2 rounded-md font-semibold text-sm transition-colors disabled:opacity-50"
+        style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = '#22d45f'
+          e.currentTarget.style.color = '#22d45f'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border)'
+          e.currentTarget.style.color = 'var(--text-muted)'
+        }}
+      >
+        Edit
       </button>
     </div>
   )

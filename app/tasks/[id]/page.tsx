@@ -197,7 +197,7 @@ export default async function TaskDetailPage({
         {/* Actions */}
         {task.status !== 'done' && (
           <div className="mb-8">
-            <TaskActions taskId={task.id} status={task.status} />
+            <TaskActions task={task} />
           </div>
         )}
 

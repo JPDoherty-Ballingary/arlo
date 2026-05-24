@@ -30,6 +30,34 @@ export async function PATCH(
   const body = await request.json()
   const { status } = body
 
+  // ── Field edit ────────────────────────────────────────────────────────────
+  if (!status) {
+    const { title, context, recipient_email, recipient_name, urgency, deadline, frequency_hours, scheduled_start_at } = body
+
+    if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    if (!recipient_email?.trim()) return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
+
+    const { data: updatedTask, error: updateError } = await supabase
+      .from('tasks')
+      .update({
+        title: title.trim(),
+        context: context?.trim() || null,
+        recipient_email: recipient_email.trim().toLowerCase(),
+        recipient_name: recipient_name?.trim() || null,
+        urgency: urgency || 'medium',
+        deadline: deadline || null,
+        frequency_hours: frequency_hours || 24,
+        scheduled_start_at: scheduled_start_at || null,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+    return NextResponse.json(updatedTask)
+  }
+
+  // ── Status update ─────────────────────────────────────────────────────────
   if (!['done', 'paused', 'active'].includes(status)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
