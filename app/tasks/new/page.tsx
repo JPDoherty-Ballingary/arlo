@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import ThemeToggle from '@/app/components/theme-toggle'
 import Logo from '@/app/components/logo'
+
+type Contact = { id: string; email: string; name: string | null }
 
 const FREQUENCY_OPTIONS = [
   { label: 'Every 4 hours', value: 4 },
@@ -43,6 +45,15 @@ export default function NewTaskPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Contact selector state
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [recipientEmail, setRecipientEmail] = useState('')
+  const [recipientName, setRecipientName] = useState('')
+  const [inputValue, setInputValue] = useState('')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const selectorRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     const supabase = createClient()
     void (async () => {
@@ -64,9 +75,57 @@ export default function NewTaskPage() {
     })()
   }, [])
 
+  // Fetch contacts
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/contacts')
+        if (res.ok) setContacts(await res.json())
+      } catch {}
+    })()
+  }, [])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (selectorRef.current && !selectorRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
+  const filteredContacts = contacts.filter((c) => {
+    if (!inputValue.trim()) return true
+    const q = inputValue.toLowerCase()
+    return c.email.toLowerCase().includes(q) || (c.name?.toLowerCase().includes(q) ?? false)
+  })
+
+  function selectContact(c: Contact) {
+    setSelectedContact(c)
+    setRecipientEmail(c.email)
+    setRecipientName(c.name ?? '')
+    setInputValue(c.name || c.email)
+    setDropdownOpen(false)
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value
+    setInputValue(val)
+    setSelectedContact(null)
+    setRecipientEmail(val)
+    setRecipientName('')
+    setDropdownOpen(true)
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+    if (!recipientEmail.trim()) {
+      setError('Recipient email is required')
+      return
+    }
     setLoading(true)
 
     const data = new FormData(e.currentTarget)
@@ -75,8 +134,8 @@ export default function NewTaskPage() {
     const body = {
       title: data.get('title') as string,
       context: (data.get('context') as string) || null,
-      recipient_email: data.get('recipient_email') as string,
-      recipient_name: (data.get('recipient_name') as string) || null,
+      recipient_email: recipientEmail.trim(),
+      recipient_name: recipientName.trim() || null,
       urgency,
       deadline: deadline ? new Date(deadline).toISOString() : null,
       frequency_hours: frequency,
@@ -143,31 +202,79 @@ export default function NewTaskPage() {
             />
           </div>
 
-          {/* Recipient email */}
-          <div>
+          {/* Recipient selector */}
+          <div ref={selectorRef}>
             <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
-              Recipient email <span style={{ color: '#22d45f' }}>*</span>
+              Recipient <span style={{ color: '#22d45f' }}>*</span>
             </label>
-            <input
-              name="recipient_email"
-              type="email"
-              required
-              className="arlo-input"
-              placeholder="colleague@company.com"
-            />
-          </div>
+            <div className="relative">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={handleInputChange}
+                onFocus={() => setDropdownOpen(true)}
+                onKeyDown={(e) => e.key === 'Escape' && setDropdownOpen(false)}
+                className="arlo-input"
+                placeholder="Search contacts or type an email…"
+                autoComplete="off"
+              />
 
-          {/* Recipient name */}
-          <div>
-            <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
-              Recipient name
-            </label>
-            <input
-              name="recipient_name"
-              type="text"
-              className="arlo-input"
-              placeholder="e.g. Sarah"
-            />
+              {/* Dropdown */}
+              {dropdownOpen && (
+                <div
+                  className="absolute z-10 w-full mt-1 rounded-md overflow-hidden"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  {filteredContacts.length > 0 ? (
+                    filteredContacts.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); selectContact(c) }}
+                        className="w-full text-left px-4 py-3 transition-colors"
+                        style={{ borderBottom: '1px solid var(--border)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <p className="text-sm font-medium leading-none" style={{ color: 'var(--text-primary)' }}>
+                          {c.name || c.email}
+                        </p>
+                        {c.name && (
+                          <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
+                            {c.email}
+                          </p>
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-4 py-3 text-sm" style={{ color: 'var(--text-faint)' }}>
+                      {inputValue.trim() ? 'No matching contacts — press Enter or continue to use this email.' : 'No contacts yet.'}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Selected contact hint */}
+            {selectedContact && (
+              <p className="mt-1.5 text-xs" style={{ color: 'var(--text-faint)' }}>
+                {selectedContact.email}
+              </p>
+            )}
+
+            <Link
+              href="/contacts"
+              className="mt-1.5 inline-block text-xs"
+              style={{ color: 'var(--text-faint)', textDecoration: 'underline' }}
+            >
+              Add new contact
+            </Link>
           </div>
 
           {/* Urgency */}
