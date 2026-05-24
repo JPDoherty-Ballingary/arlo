@@ -3,27 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic } from '@/lib/anthropic'
 import { resend } from '@/lib/resend'
 
-type FirefliesSentence = {
-  speaker_name: string
-  text: string
-}
-
 type FirefliesPayload = {
   meetingId?: string
+  clientReferenceId?: string
   eventType?: string
-  // Real Fireflies shape: data.transcript.*
-  data?: {
-    transcript?: {
-      title?: string
-      date?: string
-      sentences?: FirefliesSentence[]
-    }
-  }
-  // Simplified shape (used in tests / spec)
-  title?: string
-  transcript?: {
-    sentences?: FirefliesSentence[]
-  }
 }
 
 function extractJson(text: string): string {
@@ -32,6 +15,61 @@ function extractJson(text: string): string {
     .replace(/^```\s*/i, '')
     .replace(/```\s*$/i, '')
     .trim()
+}
+
+async function fetchFirefliesTranscript(
+  meetingId: string,
+  apiKey: string
+): Promise<{ title: string; transcriptText: string } | null> {
+  const query = `
+    query Transcript($id: String!) {
+      transcript(id: $id) {
+        title
+        date
+        sentences {
+          speaker_name
+          text
+        }
+      }
+    }
+  `
+
+  const res = await fetch('https://api.fireflies.ai/graphql', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ query, variables: { id: meetingId } }),
+  })
+
+  if (!res.ok) {
+    console.error('[fireflies] GraphQL request failed:', res.status, await res.text())
+    return null
+  }
+
+  const json = (await res.json()) as {
+    data?: {
+      transcript?: {
+        title?: string
+        sentences?: { speaker_name: string; text: string }[]
+      }
+    }
+    errors?: unknown
+  }
+
+  if (json.errors) {
+    console.error('[fireflies] GraphQL errors:', JSON.stringify(json.errors))
+  }
+
+  const transcript = json.data?.transcript
+  if (!transcript) return null
+
+  const sentences = transcript.sentences ?? []
+  const transcriptText = sentences.map((s) => `${s.speaker_name}: ${s.text}`).join('\n')
+  const title = transcript.title || 'Untitled meeting'
+
+  return { title, transcriptText }
 }
 
 export async function POST(request: Request) {
@@ -44,7 +82,7 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('id')
+    .select('id, fireflies_api_key')
     .eq('webhook_token', token)
     .maybeSingle()
 
@@ -61,28 +99,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Log top-level payload keys and data.transcript keys so we can see the real shape
-  console.log('[fireflies] payload keys:', Object.keys(payload))
-  if (payload.data) {
-    console.log('[fireflies] data keys:', Object.keys(payload.data))
-    if (payload.data.transcript) {
-      console.log('[fireflies] data.transcript keys:', Object.keys(payload.data.transcript))
-      const s = (payload.data.transcript as Record<string, unknown>).sentences
-      console.log('[fireflies] sentences type:', typeof s, Array.isArray(s) ? `length ${(s as unknown[]).length}` : 'not array')
-    }
-  }
-
-  // Support both real Fireflies shape (data.transcript.*) and simplified test shape
-  const transcriptData = payload.data?.transcript ?? payload.transcript
-  const sentences = transcriptData?.sentences ?? []
-  const transcriptText = sentences
-    .map((s) => `${s.speaker_name}: ${s.text}`)
-    .join('\n')
-
-  const meetingTitle =
-    payload.data?.transcript?.title ?? payload.title ?? 'Untitled meeting'
-
-  console.log('[fireflies] meetingTitle:', meetingTitle, '| sentences:', sentences.length, '| transcriptText length:', transcriptText.length)
+  const meetingId = payload.meetingId
+  console.log('[fireflies] webhook received — meetingId:', meetingId, '| eventType:', payload.eventType)
 
   // Mark connected on first webhook
   void supabaseAdmin
@@ -96,8 +114,39 @@ export async function POST(request: Request) {
       const ownerEmail = userData.user?.email
       if (!ownerEmail) return
 
+      if (!meetingId) {
+        console.log('[fireflies] no meetingId in payload — nothing to fetch')
+        return
+      }
+
+      const apiKey = profile.fireflies_api_key
+      if (!apiKey) {
+        console.log('[fireflies] no API key stored for user — saving empty transcript')
+        await supabaseAdmin.from('transcripts').insert({
+          owner_id: ownerId,
+          raw_text: '',
+          parsed_tasks: [],
+          title: 'Untitled meeting',
+        })
+        return
+      }
+
+      const result = await fetchFirefliesTranscript(meetingId, apiKey)
+      if (!result) {
+        console.log('[fireflies] could not fetch transcript from Fireflies API')
+        await supabaseAdmin.from('transcripts').insert({
+          owner_id: ownerId,
+          raw_text: '',
+          parsed_tasks: [],
+          title: 'Untitled meeting',
+        })
+        return
+      }
+
+      const { title: meetingTitle, transcriptText } = result
+      console.log('[fireflies] fetched transcript — title:', meetingTitle, '| length:', transcriptText.length)
+
       if (!transcriptText.trim()) {
-        console.log('[fireflies] empty transcript — saving record with 0 tasks, skipping Claude')
         await supabaseAdmin.from('transcripts').insert({
           owner_id: ownerId,
           raw_text: '',
@@ -202,7 +251,7 @@ ${transcriptText}`,
 </html>`,
       })
     } catch (err) {
-      console.error('Fireflies webhook processing error:', err)
+      console.error('[fireflies] processing error:', err)
     }
   })
 
