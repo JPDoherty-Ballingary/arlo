@@ -61,6 +61,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
+  // Log top-level payload keys and data.transcript keys so we can see the real shape
+  console.log('[fireflies] payload keys:', Object.keys(payload))
+  if (payload.data) {
+    console.log('[fireflies] data keys:', Object.keys(payload.data))
+    if (payload.data.transcript) {
+      console.log('[fireflies] data.transcript keys:', Object.keys(payload.data.transcript))
+      const s = (payload.data.transcript as Record<string, unknown>).sentences
+      console.log('[fireflies] sentences type:', typeof s, Array.isArray(s) ? `length ${(s as unknown[]).length}` : 'not array')
+    }
+  }
+
   // Support both real Fireflies shape (data.transcript.*) and simplified test shape
   const transcriptData = payload.data?.transcript ?? payload.transcript
   const sentences = transcriptData?.sentences ?? []
@@ -70,6 +81,8 @@ export async function POST(request: Request) {
 
   const meetingTitle =
     payload.data?.transcript?.title ?? payload.title ?? 'Untitled meeting'
+
+  console.log('[fireflies] meetingTitle:', meetingTitle, '| sentences:', sentences.length, '| transcriptText length:', transcriptText.length)
 
   // Mark connected on first webhook
   void supabaseAdmin
@@ -82,6 +95,17 @@ export async function POST(request: Request) {
       const { data: userData } = await supabaseAdmin.auth.admin.getUserById(ownerId)
       const ownerEmail = userData.user?.email
       if (!ownerEmail) return
+
+      if (!transcriptText.trim()) {
+        console.log('[fireflies] empty transcript — saving record with 0 tasks, skipping Claude')
+        await supabaseAdmin.from('transcripts').insert({
+          owner_id: ownerId,
+          raw_text: '',
+          parsed_tasks: [],
+          title: meetingTitle,
+        })
+        return
+      }
 
       const now = new Date()
       const currentDate = now.toISOString().slice(0, 10)
