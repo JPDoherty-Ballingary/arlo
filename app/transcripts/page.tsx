@@ -79,13 +79,8 @@ export default async function TranscriptsPage() {
               No transcripts yet.
             </p>
             <p className="text-sm" style={{ color: 'var(--text-faint)' }}>
-              Connect Fireflies in{' '}
-              <Link href="/settings" className="hover:underline" style={{ color: '#22d45f' }}>
-                Settings
-              </Link>{' '}
-              to import automatically, or{' '}
               <Link href="/transcripts/new" className="hover:underline" style={{ color: '#22d45f' }}>
-                paste one manually
+                Paste a transcript manually
               </Link>
               .
             </p>

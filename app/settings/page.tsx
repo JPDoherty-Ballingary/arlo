@@ -17,7 +17,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name, default_frequency_hours, default_urgency, webhook_token, fireflies_api_key')
+    .select('display_name, default_frequency_hours, default_urgency')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -52,8 +52,6 @@ export default async function SettingsPage() {
           userId={user.id}
           userEmail={user.email ?? ''}
           profile={profile}
-          webhookToken={profile?.webhook_token ?? null}
-          firefliesApiKey={profile?.fireflies_api_key ?? null}
         />
       </main>
     </div>

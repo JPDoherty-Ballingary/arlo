@@ -255,13 +255,6 @@ export default function TranscriptsNewPage() {
       </nav>
 
       <main className="max-w-3xl mx-auto px-6 py-12">
-        <p className="text-sm mb-6" style={{ color: 'var(--text-faint)' }}>
-          Or{' '}
-          <Link href="/settings" className="hover:underline" style={{ color: '#22d45f' }}>
-            connect Fireflies in Settings
-          </Link>{' '}
-          to import transcripts automatically →
-        </p>
 
         <h1 className="text-2xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>
           Paste a transcript manually
