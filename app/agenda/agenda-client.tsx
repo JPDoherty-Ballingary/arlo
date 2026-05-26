@@ -292,6 +292,16 @@ function AgendaPreview({
     setDraft((d) => ({ ...d, sections: d.sections.filter((_, i) => i !== si) }))
   }
 
+  function moveSection(si: number, dir: -1 | 1) {
+    setDraft((d) => {
+      const sections = [...d.sections]
+      const target = si + dir
+      if (target < 0 || target >= sections.length) return d
+      ;[sections[si], sections[target]] = [sections[target], sections[si]]
+      return { ...d, sections }
+    })
+  }
+
   function addSection() {
     setDraft((d) => ({
       ...d,
@@ -374,6 +384,26 @@ function AgendaPreview({
                   className="flex items-center gap-2 pb-2 mb-3"
                   style={{ borderBottom: '1px solid var(--border)' }}
                 >
+                  <div className="flex flex-col" style={{ gap: '1px' }}>
+                    <button
+                      type="button"
+                      onClick={() => moveSection(si, -1)}
+                      disabled={si === 0}
+                      className="text-xs leading-none px-0.5 disabled:opacity-25 hover:opacity-60"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveSection(si, 1)}
+                      disabled={si === draft.sections.length - 1}
+                      className="text-xs leading-none px-0.5 disabled:opacity-25 hover:opacity-60"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      ▼
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={section.heading}
