@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 type AgendaItem = {
   text: string
@@ -107,18 +107,202 @@ function AgendaItemRow({ item }: { item: AgendaItem }) {
   )
 }
 
+function EditItemRow({
+  item,
+  onUpdate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast,
+}: {
+  item: AgendaItem
+  onUpdate: (patch: Partial<AgendaItem>) => void
+  onDelete: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+  isFirst: boolean
+  isLast: boolean
+}) {
+  return (
+    <div
+      className="rounded p-2 flex flex-col gap-1.5"
+      style={{ border: '1px solid var(--border)', background: 'var(--bg)' }}
+    >
+      <div className="flex items-center gap-2">
+        <div className="flex flex-col" style={{ gap: '1px' }}>
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={isFirst}
+            className="text-xs leading-none px-0.5 disabled:opacity-25 hover:opacity-60"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={isLast}
+            className="text-xs leading-none px-0.5 disabled:opacity-25 hover:opacity-60"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            ▼
+          </button>
+        </div>
+        <input
+          type="text"
+          value={item.text}
+          onChange={(e) => onUpdate({ text: e.target.value })}
+          placeholder="Item text"
+          className="arlo-input text-sm py-1 flex-1"
+        />
+        <button
+          type="button"
+          onClick={onDelete}
+          className="text-lg leading-none px-1 hover:opacity-60"
+          style={{ color: 'var(--text-faint)' }}
+        >
+          ×
+        </button>
+      </div>
+      <div className="flex gap-2 pl-8">
+        <input
+          type="text"
+          value={item.owner || ''}
+          onChange={(e) => onUpdate({ owner: e.target.value || null })}
+          placeholder="Owner"
+          className="arlo-input text-xs py-0.5"
+          style={{ width: '130px' }}
+        />
+        <input
+          type="text"
+          value={item.note || ''}
+          onChange={(e) => onUpdate({ note: e.target.value || null })}
+          placeholder="Note (optional)"
+          className="arlo-input text-xs py-0.5 flex-1"
+        />
+      </div>
+    </div>
+  )
+}
+
 function AgendaPreview({
   agenda,
   onSend,
   onPrint,
+  onSave,
   sending,
 }: {
   agenda: Agenda
   onSend: () => void
   onPrint: () => void
+  onSave: (content: AgendaContent) => Promise<void>
   sending: boolean
 }) {
-  const content = agenda.content
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<AgendaContent>(agenda.content)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setDraft(agenda.content)
+    setEditing(false)
+    setSaveError(null)
+  }, [agenda.id])
+
+  function startEdit() {
+    setDraft(JSON.parse(JSON.stringify(agenda.content)))
+    setSaveError(null)
+    setEditing(true)
+  }
+
+  function cancelEdit() {
+    setDraft(agenda.content)
+    setEditing(false)
+    setSaveError(null)
+  }
+
+  async function saveEdit() {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await onSave(draft)
+      setEditing(false)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function updateItem(si: number, ii: number, patch: Partial<AgendaItem>) {
+    setDraft((d) => ({
+      ...d,
+      sections: d.sections.map((s, i) =>
+        i !== si
+          ? s
+          : { ...s, items: s.items.map((item, j) => (j === ii ? { ...item, ...patch } : item)) }
+      ),
+    }))
+  }
+
+  function deleteItem(si: number, ii: number) {
+    setDraft((d) => ({
+      ...d,
+      sections: d.sections.map((s, i) =>
+        i !== si ? s : { ...s, items: s.items.filter((_, j) => j !== ii) }
+      ),
+    }))
+  }
+
+  function addItem(si: number) {
+    setDraft((d) => ({
+      ...d,
+      sections: d.sections.map((s, i) =>
+        i !== si
+          ? s
+          : { ...s, items: [...s.items, { text: '', owner: null, urgency: null, note: null }] }
+      ),
+    }))
+  }
+
+  function moveItem(si: number, ii: number, dir: -1 | 1) {
+    setDraft((d) => ({
+      ...d,
+      sections: d.sections.map((s, i) => {
+        if (i !== si) return s
+        const items = [...s.items]
+        const target = ii + dir
+        if (target < 0 || target >= items.length) return s
+        ;[items[ii], items[target]] = [items[target], items[ii]]
+        return { ...s, items }
+      }),
+    }))
+  }
+
+  function updateHeading(si: number, heading: string) {
+    setDraft((d) => ({
+      ...d,
+      sections: d.sections.map((s, i) => (i === si ? { ...s, heading } : s)),
+    }))
+  }
+
+  function deleteSection(si: number) {
+    setDraft((d) => ({ ...d, sections: d.sections.filter((_, i) => i !== si) }))
+  }
+
+  function addSection() {
+    setDraft((d) => ({
+      ...d,
+      sections: [
+        ...d.sections,
+        { heading: 'To discuss', items: [{ text: '', owner: null, urgency: null, note: null }] },
+      ],
+    }))
+  }
+
+  const content = editing ? draft : agenda.content
 
   return (
     <div>
@@ -127,71 +311,179 @@ function AgendaPreview({
           Agenda preview
         </h2>
         <div className="flex gap-2">
-          <button
-            onClick={onPrint}
-            className="btn-green-outline px-4 py-1.5 text-sm font-medium rounded-md"
-          >
-            Print / PDF
-          </button>
-          <button
-            onClick={onSend}
-            disabled={sending}
-            className="btn-green px-4 py-1.5 text-sm font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {sending ? 'Sending…' : agenda.sent_at ? 'Resend to attendees' : 'Send to attendees'}
-          </button>
-        </div>
-      </div>
-
-      <div
-        id="agenda-print-target"
-        className="rounded-lg p-8"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-          {content.title}
-        </h1>
-        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          {content.date}
-        </p>
-
-        {content.summary && (
-          <div
-            className="rounded p-4 mb-8 text-sm leading-relaxed"
-            style={{
-              background: 'var(--bg)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-muted)',
-            }}
-          >
-            {content.summary}
-          </div>
-        )}
-
-        <div className="space-y-8">
-          {content.sections.map((section, si) => (
-            <div key={si}>
-              <h3
-                className="text-xs font-bold uppercase tracking-widest pb-2 mb-3"
-                style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}
+          {editing ? (
+            <>
+              <button
+                onClick={cancelEdit}
+                className="btn-green-outline px-4 py-1.5 text-sm font-medium rounded-md"
               >
-                {section.heading}
-              </h3>
-              <div className="space-y-2">
-                {section.items.map((item, ii) => (
-                  <AgendaItemRow key={ii} item={item} />
-                ))}
-              </div>
-            </div>
-          ))}
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={saving}
+                className="btn-green px-4 py-1.5 text-sm font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={startEdit}
+                className="btn-green-outline px-4 py-1.5 text-sm font-medium rounded-md"
+              >
+                Edit
+              </button>
+              <button
+                onClick={onPrint}
+                className="btn-green-outline px-4 py-1.5 text-sm font-medium rounded-md"
+              >
+                Print / PDF
+              </button>
+              <button
+                onClick={onSend}
+                disabled={sending}
+                className="btn-green px-4 py-1.5 text-sm font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sending ? 'Sending…' : agenda.sent_at ? 'Resend to attendees' : 'Send to attendees'}
+              </button>
+            </>
+          )}
         </div>
-
-        {agenda.sent_at && (
-          <p className="mt-8 text-xs" style={{ color: 'var(--text-faint)' }}>
-            Sent to {agenda.sent_to?.join(', ')} on {fmtDateTime(agenda.sent_at)}
-          </p>
-        )}
       </div>
+
+      {editing ? (
+        <div
+          className="rounded-lg p-8 no-print"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        >
+          <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+            {draft.title}
+          </h1>
+          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+            {draft.date}
+          </p>
+
+          {saveError && <p className="mb-4 text-sm text-red-500">{saveError}</p>}
+
+          <div className="space-y-8">
+            {draft.sections.map((section, si) => (
+              <div key={si}>
+                <div
+                  className="flex items-center gap-2 pb-2 mb-3"
+                  style={{ borderBottom: '1px solid var(--border)' }}
+                >
+                  <input
+                    type="text"
+                    value={section.heading}
+                    onChange={(e) => updateHeading(si, e.target.value)}
+                    className="arlo-input text-xs font-bold uppercase tracking-widest flex-1 py-1"
+                    style={{ color: 'var(--text-muted)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => deleteSection(si)}
+                    className="text-xs px-2 py-1 rounded hover:opacity-70 shrink-0"
+                    style={{ color: 'var(--text-faint)', border: '1px solid var(--border)' }}
+                  >
+                    Remove section
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {section.items.map((item, ii) => (
+                    <EditItemRow
+                      key={ii}
+                      item={item}
+                      onUpdate={(patch) => updateItem(si, ii, patch)}
+                      onDelete={() => deleteItem(si, ii)}
+                      onMoveUp={() => moveItem(si, ii, -1)}
+                      onMoveDown={() => moveItem(si, ii, 1)}
+                      isFirst={ii === 0}
+                      isLast={ii === section.items.length - 1}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => addItem(si)}
+                    className="text-sm w-full py-1.5 rounded transition-opacity hover:opacity-70"
+                    style={{
+                      color: 'var(--text-muted)',
+                      border: '1px dashed var(--border)',
+                      background: 'transparent',
+                    }}
+                  >
+                    + Add item
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addSection}
+              className="text-sm w-full py-2 rounded transition-opacity hover:opacity-70"
+              style={{
+                color: 'var(--text-muted)',
+                border: '1px dashed var(--border)',
+                background: 'transparent',
+              }}
+            >
+              + Add section
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          id="agenda-print-target"
+          className="rounded-lg p-8"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        >
+          <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+            {content.title}
+          </h1>
+          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+            {content.date}
+          </p>
+
+          {content.summary && (
+            <div
+              className="rounded p-4 mb-8 text-sm leading-relaxed"
+              style={{
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              {content.summary}
+            </div>
+          )}
+
+          <div className="space-y-8">
+            {content.sections.map((section, si) => (
+              <div key={si}>
+                <h3
+                  className="text-xs font-bold uppercase tracking-widest pb-2 mb-3"
+                  style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}
+                >
+                  {section.heading}
+                </h3>
+                <div className="space-y-2">
+                  {section.items.map((item, ii) => (
+                    <AgendaItemRow key={ii} item={item} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {agenda.sent_at && (
+            <p className="mt-8 text-xs" style={{ color: 'var(--text-faint)' }}>
+              Sent to {agenda.sent_to?.join(', ')} on {fmtDateTime(agenda.sent_at)}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -280,6 +572,20 @@ export default function AgendaClient({ initialAgendas, recipients }: Props) {
     } finally {
       setSending(false)
     }
+  }
+
+  async function handleSave(content: AgendaContent) {
+    if (!currentAgenda) return
+    const res = await fetch('/api/agenda/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agendaId: currentAgenda.id, content }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to save agenda')
+    const updated: Agenda = data
+    setCurrentAgenda(updated)
+    setAgendas((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
   }
 
   return (
@@ -428,6 +734,7 @@ export default function AgendaClient({ initialAgendas, recipients }: Props) {
             agenda={currentAgenda}
             onSend={handleSend}
             onPrint={() => window.print()}
+            onSave={handleSave}
             sending={sending}
           />
         ) : (
