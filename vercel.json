@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/nag",
-      "schedule": "0 */4 * * *"
+      "schedule": "0 7,11,15 * * 1-5"
     },
     {
       "path": "/api/cron/scheduled-emails",
