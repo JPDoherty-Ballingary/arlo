@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import Logo from '@/app/components/logo'
 import PortalCompleteButton from './portal-complete-button'
+import PortalAddNote from './portal-add-note'
 
 const URGENCY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 }
 
@@ -190,6 +191,7 @@ export default async function PortalTokenPage({
                             </div>
                             <PortalCompleteButton doneToken={task.done_token} />
                           </div>
+                          <PortalAddNote taskId={task.id} portalToken={token} />
                         </div>
                       )
                     })}
