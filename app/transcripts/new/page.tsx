@@ -12,6 +12,13 @@ type Recipient = {
   email: string
 }
 
+type ExistingTask = {
+  id: string
+  title: string
+  recipient_email: string
+  recipient_name: string | null
+}
+
 type ParsedTask = {
   _id: string
   title: string
@@ -21,9 +28,49 @@ type ParsedTask = {
   recipient_hint: string | null
   recipient_email: string
   recipient_name: string
+  matched_existing?: ExistingTask
 }
 
 const URGENCY_OPTIONS = ['low', 'medium', 'high'] as const
+
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'by', 'for',
+  'with', 'of', 'to', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'must', 'shall', 'that', 'this', 'it', 'its',
+])
+
+function titleWords(title: string): Set<string> {
+  return new Set(
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
+  )
+}
+
+function titleSimilarity(a: string, b: string): number {
+  const wa = titleWords(a)
+  const wb = titleWords(b)
+  if (wa.size === 0 || wb.size === 0) return 0
+  const intersection = [...wa].filter((w) => wb.has(w)).length
+  const union = new Set([...wa, ...wb]).size
+  return intersection / union
+}
+
+function findMatchingTask(parsedTitle: string, existingTasks: ExistingTask[]): ExistingTask | undefined {
+  let best: ExistingTask | undefined
+  let bestScore = 0
+  for (const task of existingTasks) {
+    const score = titleSimilarity(parsedTitle, task.title)
+    if (score > bestScore) {
+      bestScore = score
+      best = task
+    }
+  }
+  return bestScore >= 0.3 ? best : undefined
+}
 
 function isoToDatetimeLocal(iso: string | null): string {
   if (!iso) return ''
@@ -139,6 +186,7 @@ export default function TranscriptsNewPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [recipients, setRecipients] = useState<Recipient[]>([])
+  const [existingTasks, setExistingTasks] = useState<ExistingTask[]>([])
 
   useEffect(() => {
     const supabase = createClient()
@@ -148,6 +196,13 @@ export default function TranscriptsNewPage() {
       .order('name', { ascending: true })
       .then(({ data }) => {
         if (data) setRecipients(data)
+      })
+    supabase
+      .from('tasks')
+      .select('id, title, recipient_email, recipient_name')
+      .in('status', ['active', 'paused'])
+      .then(({ data }) => {
+        if (data) setExistingTasks(data)
       })
   }, [])
 
@@ -174,13 +229,15 @@ export default function TranscriptsNewPage() {
       return
     }
 
+    const now = Date.now()
     const parsed: ParsedTask[] = (json as unknown[]).map((item: unknown, i: number) => {
       const t = item as Record<string, unknown>
       const hint = (t.recipient_hint as string | null) || null
       const matched = matchRecipient(hint, recipients)
+      const title = (t.title as string) || ''
       return {
-        _id: `task-${i}-${Date.now()}`,
-        title: (t.title as string) || '',
+        _id: `task-${i}-${now}`,
+        title,
         context: (t.context as string) || '',
         suggested_deadline: (t.suggested_deadline as string | null) || null,
         urgency: (['low', 'medium', 'high'].includes(t.urgency as string)
@@ -189,6 +246,7 @@ export default function TranscriptsNewPage() {
         recipient_hint: hint,
         recipient_email: matched?.email || '',
         recipient_name: matched?.name || '',
+        matched_existing: findMatchingTask(title, existingTasks),
       }
     })
 
@@ -308,6 +366,27 @@ export default function TranscriptsNewPage() {
                           ✕ Remove
                         </button>
                       </div>
+
+                      {task.matched_existing && (
+                        <div
+                          className="flex items-start gap-2 rounded-md px-3 py-2 mb-4 text-xs"
+                          style={{
+                            background: 'rgba(234, 179, 8, 0.08)',
+                            border: '1px solid rgba(234, 179, 8, 0.3)',
+                            color: 'rgb(202, 155, 0)',
+                          }}
+                        >
+                          <span className="shrink-0 mt-0.5">⚠</span>
+                          <span>
+                            Already tracked in Arlo:{' '}
+                            <span className="font-medium">&ldquo;{task.matched_existing.title}&rdquo;</span>
+                            {(task.matched_existing.recipient_name || task.matched_existing.recipient_email) && (
+                              <> &mdash; assigned to {task.matched_existing.recipient_name || task.matched_existing.recipient_email}</>
+                            )}
+                            . Remove this item if it&apos;s the same task.
+                          </span>
+                        </div>
+                      )}
 
                       <div className="flex flex-col gap-3">
                         <div>

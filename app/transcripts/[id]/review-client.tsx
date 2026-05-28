@@ -67,7 +67,7 @@ function findMatchingTask(parsedTitle: string, existingTasks: ExistingTask[]): E
       best = task
     }
   }
-  return bestScore >= 0.4 ? best : undefined
+  return bestScore >= 0.3 ? best : undefined
 }
 
 function isoToDatetimeLocal(iso: string | null): string {
