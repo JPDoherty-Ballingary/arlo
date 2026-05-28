@@ -30,7 +30,7 @@ export async function POST(
 
   const { data: note, error } = await supabase
     .from('task_notes')
-    .insert({ task_id: id, owner_id: user.id, content })
+    .insert({ task_id: id, owner_id: user.id, content, author_email: user.email })
     .select()
     .single()
 

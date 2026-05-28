@@ -1,0 +1,1 @@
+ALTER TABLE task_notes ADD COLUMN IF NOT EXISTS author_email TEXT;

@@ -79,7 +79,7 @@ export default async function TaskDetailPage({
       .maybeSingle(),
     supabase
       .from('task_notes')
-      .select('id, content, created_at')
+      .select('id, content, created_at, author_email')
       .eq('task_id', id)
       .eq('owner_id', user.id)
       .order('created_at', { ascending: true }),

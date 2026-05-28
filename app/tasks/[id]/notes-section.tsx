@@ -6,6 +6,7 @@ type Note = {
   id: string
   content: string
   created_at: string
+  author_email: string | null
 }
 
 function formatDate(iso: string): string {
@@ -138,6 +139,7 @@ export default function NotesSection({
                 {note.content}
               </p>
               <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                {note.author_email && <span>{note.author_email} · </span>}
                 {formatDate(note.created_at)}
               </p>
             </div>
