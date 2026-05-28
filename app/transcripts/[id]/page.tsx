@@ -13,6 +13,13 @@ type Recipient = {
   email: string
 }
 
+type ExistingTask = {
+  id: string
+  title: string
+  recipient_email: string
+  recipient_name: string | null
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', {
     timeZone: 'Europe/London',
@@ -53,7 +60,14 @@ export default async function TranscriptDetailPage({
     .eq('owner_id', user.id)
     .order('name', { ascending: true })
 
+  const { data: existingTaskRows } = await supabase
+    .from('tasks')
+    .select('id, title, recipient_email, recipient_name')
+    .eq('owner_id', user.id)
+    .in('status', ['active', 'paused'])
+
   const recipients = (recipientRows ?? []) as Recipient[]
+  const existingTasks = (existingTaskRows ?? []) as ExistingTask[]
   const meetingTitle = transcript.title || 'Untitled meeting'
   const parsedTasks = Array.isArray(transcript.parsed_tasks) ? transcript.parsed_tasks : []
   const alreadySaved = !!transcript.tasks_saved_at
@@ -109,6 +123,7 @@ export default async function TranscriptDetailPage({
             rawText={transcript.raw_text || ''}
             initialParsedTasks={parsedTasks as Record<string, unknown>[]}
             initialRecipients={recipients}
+            initialExistingTasks={existingTasks}
           />
         )}
       </main>

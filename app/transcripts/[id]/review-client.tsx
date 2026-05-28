@@ -10,6 +10,13 @@ type Recipient = {
   email: string
 }
 
+type ExistingTask = {
+  id: string
+  title: string
+  recipient_email: string
+  recipient_name: string | null
+}
+
 type ParsedTask = {
   _id: string
   title: string
@@ -19,9 +26,49 @@ type ParsedTask = {
   recipient_hint: string | null
   recipient_email: string
   recipient_name: string
+  matched_existing?: ExistingTask
 }
 
 const URGENCY_OPTIONS = ['low', 'medium', 'high'] as const
+
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'by', 'for',
+  'with', 'of', 'to', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'must', 'shall', 'that', 'this', 'it', 'its',
+])
+
+function titleWords(title: string): Set<string> {
+  return new Set(
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
+  )
+}
+
+function titleSimilarity(a: string, b: string): number {
+  const wa = titleWords(a)
+  const wb = titleWords(b)
+  if (wa.size === 0 || wb.size === 0) return 0
+  const intersection = [...wa].filter((w) => wb.has(w)).length
+  const union = new Set([...wa, ...wb]).size
+  return intersection / union
+}
+
+function findMatchingTask(parsedTitle: string, existingTasks: ExistingTask[]): ExistingTask | undefined {
+  let best: ExistingTask | undefined
+  let bestScore = 0
+  for (const task of existingTasks) {
+    const score = titleSimilarity(parsedTitle, task.title)
+    if (score > bestScore) {
+      bestScore = score
+      best = task
+    }
+  }
+  return bestScore >= 0.4 ? best : undefined
+}
 
 function isoToDatetimeLocal(iso: string | null): string {
   if (!iso) return ''
@@ -130,12 +177,14 @@ export default function ReviewClient({
   rawText,
   initialParsedTasks,
   initialRecipients,
+  initialExistingTasks,
 }: {
   transcriptId: string
   meetingTitle: string
   rawText: string
   initialParsedTasks: Record<string, unknown>[]
   initialRecipients: Recipient[]
+  initialExistingTasks: ExistingTask[]
 }) {
   const router = useRouter()
   const [transcriptOpen, setTranscriptOpen] = useState(false)
@@ -144,9 +193,11 @@ export default function ReviewClient({
     initialParsedTasks.map((t, i) => {
       const hint = (t.recipient_hint as string | null) || null
       const matched = matchRecipient(hint, initialRecipients)
+      const title = (t.title as string) || ''
+      const matchedExisting = findMatchingTask(title, initialExistingTasks)
       return {
         _id: `task-${i}`,
-        title: (t.title as string) || '',
+        title,
         context: (t.context as string) || '',
         suggested_deadline: (t.suggested_deadline as string | null) || null,
         urgency: (['low', 'medium', 'high'].includes(t.urgency as string)
@@ -155,6 +206,7 @@ export default function ReviewClient({
         recipient_hint: hint,
         recipient_email: matched?.email || '',
         recipient_name: matched?.name || '',
+        matched_existing: matchedExisting,
       }
     })
   )
@@ -295,6 +347,27 @@ export default function ReviewClient({
                 ✕ Remove
               </button>
             </div>
+
+            {task.matched_existing && (
+              <div
+                className="flex items-start gap-2 rounded-md px-3 py-2 mb-4 text-xs"
+                style={{
+                  background: 'rgba(234, 179, 8, 0.08)',
+                  border: '1px solid rgba(234, 179, 8, 0.3)',
+                  color: 'rgb(202, 155, 0)',
+                }}
+              >
+                <span className="shrink-0 mt-0.5">⚠</span>
+                <span>
+                  Already tracked in Arlo:{' '}
+                  <span className="font-medium">&ldquo;{task.matched_existing.title}&rdquo;</span>
+                  {(task.matched_existing.recipient_name || task.matched_existing.recipient_email) && (
+                    <> &mdash; assigned to {task.matched_existing.recipient_name || task.matched_existing.recipient_email}</>
+                  )}
+                  . Remove this item if it&apos;s the same task.
+                </span>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3">
               <div>
