@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import AppNav from '@/app/components/app-nav'
 import TaskActions from './task-actions'
 import NagLogEntry from './nag-log-entry'
+import NotesSection from './notes-section'
 
 export const metadata: Metadata = { title: 'Task' }
 
@@ -64,7 +65,7 @@ export default async function TaskDetailPage({
 
   if (taskError || !task) redirect('/dashboard')
 
-  const [{ data: nagLogs }, { data: recipient }] = await Promise.all([
+  const [{ data: nagLogs }, { data: recipient }, { data: noteRows }] = await Promise.all([
     supabaseAdmin
       .from('nag_logs')
       .select('id, sent_at, tone_used, subject, body')
@@ -76,6 +77,12 @@ export default async function TaskDetailPage({
       .eq('owner_id', user.id)
       .eq('email', task.recipient_email)
       .maybeSingle(),
+    supabase
+      .from('task_notes')
+      .select('id, content, created_at')
+      .eq('task_id', id)
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true }),
   ])
 
   const deadline = formatDeadline(task.deadline)
@@ -203,6 +210,9 @@ export default async function TaskDetailPage({
             <TaskActions task={task} />
           </div>
         )}
+
+        {/* Notes */}
+        <NotesSection taskId={id} initialNotes={noteRows ?? []} />
 
         {/* Nag history */}
         <div>

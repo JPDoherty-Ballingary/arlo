@@ -31,7 +31,7 @@ export default async function DashboardPage() {
 
   if (!user) redirect('/login')
 
-  const [{ data: tasks }, { data: recipients }] = await Promise.all([
+  const [{ data: tasks }, { data: recipients }, { data: noteRows }] = await Promise.all([
     supabase
       .from('tasks')
       .select('*')
@@ -42,7 +42,20 @@ export default async function DashboardPage() {
       .select('*')
       .eq('owner_id', user.id)
       .order('reliability_score', { ascending: false }),
+    supabase
+      .from('task_notes')
+      .select('task_id')
+      .eq('owner_id', user.id),
   ])
+
+  const noteCountMap: Record<string, number> = {}
+  for (const row of noteRows ?? []) {
+    noteCountMap[row.task_id] = (noteCountMap[row.task_id] ?? 0) + 1
+  }
+  const tasksWithNotes = (tasks ?? []).map((t) => ({
+    ...t,
+    note_count: noteCountMap[t.id] ?? 0,
+  }))
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -54,7 +67,7 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
             Your tasks
           </h1>
-          <DashboardTabs tasks={tasks ?? []} />
+          <DashboardTabs tasks={tasksWithNotes} />
         </section>
 
         {/* Reliability scores section */}

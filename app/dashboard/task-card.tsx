@@ -15,6 +15,7 @@ type Task = {
   last_nagged_at: string | null
   owner_notified_of_claim: boolean
   scheduled_start_at: string | null
+  note_count: number
 }
 
 const URGENCY_BADGE: Record<string, { label: string }> = {
@@ -53,6 +54,10 @@ function formatLastNagged(lastNaggedAt: string | null): string {
 export default function TaskCard({ task }: { task: Task }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
+  const [addingNote, setAddingNote] = useState(false)
+  const [noteContent, setNoteContent] = useState('')
+  const [noteSaving, setNoteSaving] = useState(false)
+  const [noteCount, setNoteCount] = useState(task.note_count)
 
   const badge = URGENCY_BADGE[task.urgency]
   const deadline = formatDeadline(task.deadline)
@@ -64,6 +69,22 @@ export default function TaskCard({ task }: { task: Task }) {
   const scheduledStartLabel = isScheduledFuture
     ? `Starts ${scheduledStart.toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short' })}`
     : null
+
+  async function saveNote() {
+    if (!noteContent.trim()) return
+    setNoteSaving(true)
+    const res = await fetch(`/api/tasks/${task.id}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: noteContent }),
+    })
+    if (res.ok) {
+      setNoteCount((n) => n + 1)
+      setNoteContent('')
+      setAddingNote(false)
+    }
+    setNoteSaving(false)
+  }
 
   async function updateStatus(status: 'done' | 'paused' | 'active') {
     setPending(true)
@@ -110,6 +131,18 @@ export default function TaskCard({ task }: { task: Task }) {
                 Claiming done — confirm?
               </span>
             )}
+            {noteCount > 0 && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  background: 'var(--surface)',
+                  color: 'var(--text-faint)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                {noteCount} note{noteCount === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
             {task.recipient_name || task.recipient_email}
@@ -153,30 +186,76 @@ export default function TaskCard({ task }: { task: Task }) {
       </div>
 
       {/* Action buttons — stop propagation so clicks don't navigate */}
-      <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={() => updateStatus('done')}
-          disabled={pending}
-          className="btn-green flex-1 py-1.5 rounded-md text-sm font-semibold disabled:opacity-40"
-        >
-          Mark done
-        </button>
-        <button
-          onClick={() => updateStatus(isPaused ? 'active' : 'paused')}
-          disabled={pending}
-          className="flex-1 py-1.5 rounded-md text-sm font-semibold transition-colors disabled:opacity-40"
-          style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#22d45f'
-            e.currentTarget.style.color = '#22d45f'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border)'
-            e.currentTarget.style.color = 'var(--text-muted)'
-          }}
-        >
-          {isPaused ? 'Resume' : 'Pause'}
-        </button>
+      <div className="flex flex-col gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex gap-2">
+          <button
+            onClick={() => updateStatus('done')}
+            disabled={pending}
+            className="btn-green flex-1 py-1.5 rounded-md text-sm font-semibold disabled:opacity-40"
+          >
+            Mark done
+          </button>
+          <button
+            onClick={() => updateStatus(isPaused ? 'active' : 'paused')}
+            disabled={pending}
+            className="flex-1 py-1.5 rounded-md text-sm font-semibold transition-colors disabled:opacity-40"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#22d45f'
+              e.currentTarget.style.color = '#22d45f'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)'
+              e.currentTarget.style.color = 'var(--text-muted)'
+            }}
+          >
+            {isPaused ? 'Resume' : 'Pause'}
+          </button>
+          <button
+            onClick={() => setAddingNote((v) => !v)}
+            className="px-3 py-1.5 rounded-md text-sm font-semibold transition-colors"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--text-faint)'
+              e.currentTarget.style.color = 'var(--text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)'
+              e.currentTarget.style.color = 'var(--text-muted)'
+            }}
+          >
+            + Note
+          </button>
+        </div>
+
+        {addingNote && (
+          <div className="flex flex-col gap-2">
+            <textarea
+              rows={2}
+              value={noteContent}
+              onChange={(e) => setNoteContent(e.target.value)}
+              className="arlo-input resize-none w-full text-sm"
+              placeholder="Add a note…"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={saveNote}
+                disabled={!noteContent.trim() || noteSaving}
+                className="btn-green flex-1 py-1.5 rounded-md text-sm font-semibold disabled:opacity-50"
+              >
+                {noteSaving ? 'Saving…' : 'Save note'}
+              </button>
+              <button
+                onClick={() => { setAddingNote(false); setNoteContent('') }}
+                className="flex-1 py-1.5 rounded-md text-sm transition-colors"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
