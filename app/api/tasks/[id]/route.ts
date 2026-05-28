@@ -30,6 +30,23 @@ export async function PATCH(
   const body = await request.json()
   const { status } = body
 
+  // ── Context append ────────────────────────────────────────────────────────
+  if (body.append_context !== undefined) {
+    const note = (body.append_context as string).trim()
+    const existing = (task.context as string | null) || ''
+    const newContext = existing ? `${existing}\n\n${note}` : note
+
+    const { data: updatedTask, error: updateError } = await supabase
+      .from('tasks')
+      .update({ context: newContext })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+    return NextResponse.json(updatedTask)
+  }
+
   // ── Field edit ────────────────────────────────────────────────────────────
   if (!status) {
     const { title, context, recipient_email, recipient_name, urgency, deadline, frequency_hours, scheduled_start_at } = body

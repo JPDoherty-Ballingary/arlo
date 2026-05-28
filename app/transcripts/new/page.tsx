@@ -29,6 +29,7 @@ type ParsedTask = {
   recipient_email: string
   recipient_name: string
   matched_existing?: ExistingTask
+  update_mode: boolean
 }
 
 const URGENCY_OPTIONS = ['low', 'medium', 'high'] as const
@@ -207,7 +208,9 @@ export default function TranscriptsNewPage() {
   }, [])
 
   const allEmailsFilled =
-    tasks !== null && tasks.length > 0 && tasks.every((t) => t.recipient_email.trim() !== '')
+    tasks !== null &&
+    tasks.length > 0 &&
+    tasks.every((t) => (t.matched_existing && t.update_mode) || t.recipient_email.trim() !== '')
 
   async function handleParse(e: React.FormEvent) {
     e.preventDefault()
@@ -230,15 +233,23 @@ export default function TranscriptsNewPage() {
     }
 
     const now = Date.now()
+    const today = new Date().toLocaleDateString('en-GB', {
+      timeZone: 'Europe/London',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
     const parsed: ParsedTask[] = (json as unknown[]).map((item: unknown, i: number) => {
       const t = item as Record<string, unknown>
       const hint = (t.recipient_hint as string | null) || null
       const matched = matchRecipient(hint, recipients)
       const title = (t.title as string) || ''
+      const rawContext = (t.context as string) || ''
+      const matchedExisting = findMatchingTask(title, existingTasks)
       return {
         _id: `task-${i}-${now}`,
         title,
-        context: (t.context as string) || '',
+        context: matchedExisting ? `[${today}] ${rawContext}` : rawContext,
         suggested_deadline: (t.suggested_deadline as string | null) || null,
         urgency: (['low', 'medium', 'high'].includes(t.urgency as string)
           ? t.urgency
@@ -246,7 +257,8 @@ export default function TranscriptsNewPage() {
         recipient_hint: hint,
         recipient_email: matched?.email || '',
         recipient_name: matched?.name || '',
-        matched_existing: findMatchingTask(title, existingTasks),
+        matched_existing: matchedExisting,
+        update_mode: !!matchedExisting,
       }
     })
 
@@ -256,6 +268,12 @@ export default function TranscriptsNewPage() {
   function updateTask(id: string, field: string, value: string) {
     setTasks((prev) =>
       prev ? prev.map((t) => (t._id === id ? { ...t, [field]: value } : t)) : prev
+    )
+  }
+
+  function toggleUpdateMode(id: string, mode: boolean) {
+    setTasks((prev) =>
+      prev ? prev.map((t) => (t._id === id ? { ...t, update_mode: mode } : t)) : prev
     )
   }
 
@@ -269,29 +287,43 @@ export default function TranscriptsNewPage() {
     setSaveError(null)
 
     for (const task of tasks) {
-      const deadline = task.suggested_deadline
-        ? new Date(isoToDatetimeLocal(task.suggested_deadline)).toISOString()
-        : null
+      if (task.matched_existing && task.update_mode) {
+        const res = await fetch(`/api/tasks/${task.matched_existing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ append_context: task.context }),
+        })
+        if (!res.ok) {
+          const data = await res.json()
+          setSaveError(`Failed to update "${task.matched_existing.title}": ${data.error}`)
+          setSaving(false)
+          return
+        }
+      } else {
+        const deadline = task.suggested_deadline
+          ? new Date(isoToDatetimeLocal(task.suggested_deadline)).toISOString()
+          : null
 
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: task.title,
-          context: task.context || null,
-          recipient_email: task.recipient_email,
-          recipient_name: task.recipient_name || null,
-          urgency: task.urgency,
-          deadline,
-          frequency_hours: 24,
-        }),
-      })
+        const res = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: task.title,
+            context: task.context || null,
+            recipient_email: task.recipient_email,
+            recipient_name: task.recipient_name || null,
+            urgency: task.urgency,
+            deadline,
+            frequency_hours: 24,
+          }),
+        })
 
-      if (!res.ok) {
-        const data = await res.json()
-        setSaveError(`Failed to save "${task.title}": ${data.error}`)
-        setSaving(false)
-        return
+        if (!res.ok) {
+          const data = await res.json()
+          setSaveError(`Failed to save "${task.title}": ${data.error}`)
+          setSaving(false)
+          return
+        }
       }
     }
 
@@ -353,125 +385,196 @@ export default function TranscriptsNewPage() {
                       className="rounded-lg p-5"
                       style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                     >
-                      <div className="flex items-start justify-between gap-3 mb-4">
-                        <span className="text-xs font-medium" style={{ color: '#22d45f' }}>
-                          Action item
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeTask(task._id)}
-                          className="text-sm transition-colors hover:text-red-500"
-                          style={{ color: 'var(--text-faint)' }}
-                        >
-                          ✕ Remove
-                        </button>
-                      </div>
-
-                      {task.matched_existing && (
-                        <div
-                          className="flex items-start gap-2 rounded-md px-3 py-2 mb-4 text-xs"
-                          style={{
-                            background: 'rgba(234, 179, 8, 0.08)',
-                            border: '1px solid rgba(234, 179, 8, 0.3)',
-                            color: 'rgb(202, 155, 0)',
-                          }}
-                        >
-                          <span className="shrink-0 mt-0.5">⚠</span>
-                          <span>
-                            Already tracked in Arlo:{' '}
-                            <span className="font-medium">&ldquo;{task.matched_existing.title}&rdquo;</span>
-                            {(task.matched_existing.recipient_name || task.matched_existing.recipient_email) && (
-                              <> &mdash; assigned to {task.matched_existing.recipient_name || task.matched_existing.recipient_email}</>
-                            )}
-                            . Remove this item if it&apos;s the same task.
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="flex flex-col gap-3">
-                        <div>
-                          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                            Task title
-                          </label>
-                          <input
-                            type="text"
-                            value={task.title}
-                            onChange={(e) => updateTask(task._id, 'title', e.target.value)}
-                            className="arlo-input"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                            Context
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={task.context}
-                            onChange={(e) => updateTask(task._id, 'context', e.target.value)}
-                            className="arlo-input resize-none"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                              Recipient email <span style={{ color: '#22d45f' }}>*</span>
-                            </label>
-                            <RecipientAutocomplete
-                              recipients={recipients}
-                              email={task.recipient_email}
-                              onEmailChange={(v) => updateTask(task._id, 'recipient_email', v)}
-                              onNameChange={(v) => updateTask(task._id, 'recipient_name', v)}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                              Recipient name
-                            </label>
-                            <input
-                              type="text"
-                              value={task.recipient_name}
-                              onChange={(e) => updateTask(task._id, 'recipient_name', e.target.value)}
-                              className="arlo-input"
-                              placeholder={task.recipient_hint || 'e.g. Sarah'}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                              Urgency
-                            </label>
-                            <select
-                              value={task.urgency}
-                              onChange={(e) => updateTask(task._id, 'urgency', e.target.value)}
-                              className="arlo-input"
+                      {/* ── Update-existing mode ── */}
+                      {task.matched_existing && task.update_mode ? (
+                        <>
+                          <div className="flex items-start justify-between gap-3 mb-4">
+                            <span className="text-xs font-medium" style={{ color: 'rgb(202, 155, 0)' }}>
+                              Update existing task
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeTask(task._id)}
+                              className="text-sm transition-colors hover:text-red-500"
+                              style={{ color: 'var(--text-faint)' }}
                             >
-                              {URGENCY_OPTIONS.map((u) => (
-                                <option key={u} value={u}>
-                                  {u.charAt(0).toUpperCase() + u.slice(1)}
-                                </option>
-                              ))}
-                            </select>
+                              ✕ Remove
+                            </button>
                           </div>
 
-                          <div>
-                            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                              Deadline
-                            </label>
-                            <input
-                              type="datetime-local"
-                              value={isoToDatetimeLocal(task.suggested_deadline)}
-                              onChange={(e) =>
-                                updateTask(task._id, 'suggested_deadline', e.target.value)
-                              }
-                              className="arlo-input"
-                              style={{ colorScheme: 'light dark' }}
-                            />
+                          <div
+                            className="rounded-md px-3 py-2.5 mb-4"
+                            style={{
+                              background: 'rgba(234, 179, 8, 0.08)',
+                              border: '1px solid rgba(234, 179, 8, 0.25)',
+                            }}
+                          >
+                            <p className="text-xs mb-0.5" style={{ color: 'var(--text-faint)' }}>Updating:</p>
+                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                              &ldquo;{task.matched_existing.title}&rdquo;
+                            </p>
+                            {(task.matched_existing.recipient_name || task.matched_existing.recipient_email) && (
+                              <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                                Assigned to {task.matched_existing.recipient_name || task.matched_existing.recipient_email}
+                              </p>
+                            )}
                           </div>
-                        </div>
-                      </div>
+
+                          <div className="flex flex-col gap-3">
+                            <div>
+                              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                                Notes to add
+                              </label>
+                              <textarea
+                                rows={3}
+                                value={task.context}
+                                onChange={(e) => updateTask(task._id, 'context', e.target.value)}
+                                className="arlo-input resize-none"
+                                placeholder="Add a note about this task…"
+                              />
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => toggleUpdateMode(task._id, false)}
+                              className="text-xs self-start transition-colors hover:underline"
+                              style={{ color: 'var(--text-faint)' }}
+                            >
+                              Create as new task instead →
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* ── Create-new mode ── */}
+                          <div className="flex items-start justify-between gap-3 mb-4">
+                            <span className="text-xs font-medium" style={{ color: '#22d45f' }}>
+                              Action item
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeTask(task._id)}
+                              className="text-sm transition-colors hover:text-red-500"
+                              style={{ color: 'var(--text-faint)' }}
+                            >
+                              ✕ Remove
+                            </button>
+                          </div>
+
+                          {task.matched_existing && (
+                            <div
+                              className="flex items-start gap-2 rounded-md px-3 py-2 mb-4 text-xs"
+                              style={{
+                                background: 'rgba(234, 179, 8, 0.08)',
+                                border: '1px solid rgba(234, 179, 8, 0.3)',
+                                color: 'rgb(202, 155, 0)',
+                              }}
+                            >
+                              <span className="shrink-0 mt-0.5">⚠</span>
+                              <span>
+                                Already tracked in Arlo:{' '}
+                                <span className="font-medium">&ldquo;{task.matched_existing.title}&rdquo;</span>
+                                {(task.matched_existing.recipient_name || task.matched_existing.recipient_email) && (
+                                  <> &mdash; {task.matched_existing.recipient_name || task.matched_existing.recipient_email}</>
+                                )}
+                                .{' '}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleUpdateMode(task._id, true)}
+                                  className="underline font-medium"
+                                >
+                                  Update that task instead →
+                                </button>
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex flex-col gap-3">
+                            <div>
+                              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                                Task title
+                              </label>
+                              <input
+                                type="text"
+                                value={task.title}
+                                onChange={(e) => updateTask(task._id, 'title', e.target.value)}
+                                className="arlo-input"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                                Context
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={task.context}
+                                onChange={(e) => updateTask(task._id, 'context', e.target.value)}
+                                className="arlo-input resize-none"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Recipient email <span style={{ color: '#22d45f' }}>*</span>
+                                </label>
+                                <RecipientAutocomplete
+                                  recipients={recipients}
+                                  email={task.recipient_email}
+                                  onEmailChange={(v) => updateTask(task._id, 'recipient_email', v)}
+                                  onNameChange={(v) => updateTask(task._id, 'recipient_name', v)}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Recipient name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={task.recipient_name}
+                                  onChange={(e) => updateTask(task._id, 'recipient_name', e.target.value)}
+                                  className="arlo-input"
+                                  placeholder={task.recipient_hint || 'e.g. Sarah'}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Urgency
+                                </label>
+                                <select
+                                  value={task.urgency}
+                                  onChange={(e) => updateTask(task._id, 'urgency', e.target.value)}
+                                  className="arlo-input"
+                                >
+                                  {URGENCY_OPTIONS.map((u) => (
+                                    <option key={u} value={u}>
+                                      {u.charAt(0).toUpperCase() + u.slice(1)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Deadline
+                                </label>
+                                <input
+                                  type="datetime-local"
+                                  value={isoToDatetimeLocal(task.suggested_deadline)}
+                                  onChange={(e) =>
+                                    updateTask(task._id, 'suggested_deadline', e.target.value)
+                                  }
+                                  className="arlo-input"
+                                  style={{ colorScheme: 'light dark' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -485,9 +588,13 @@ export default function TranscriptsNewPage() {
                     disabled={!allEmailsFilled || saving}
                     className="btn-green px-6 py-2.5 rounded-md font-semibold text-sm disabled:opacity-50"
                   >
-                    {saving
-                      ? 'Saving…'
-                      : `Save ${tasks.length} task${tasks.length === 1 ? '' : 's'} to Arlo`}
+                    {saving ? 'Saving…' : (() => {
+                      const creates = tasks.filter(t => !t.matched_existing || !t.update_mode).length
+                      const updates = tasks.filter(t => t.matched_existing && t.update_mode).length
+                      if (creates > 0 && updates > 0) return `Save ${creates} new + update ${updates} to Arlo`
+                      if (updates > 0) return `Update ${updates} task${updates === 1 ? '' : 's'} in Arlo`
+                      return `Save ${creates} task${creates === 1 ? '' : 's'} to Arlo`
+                    })()}
                   </button>
                   {!allEmailsFilled && (
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
