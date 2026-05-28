@@ -120,6 +120,39 @@ export default async function PortalTokenPage({
     (tasks ?? []).find((t) => t.recipient_name)?.recipient_name ||
     email.split('@')[0]
 
+  // Fetch notes and nag logs for all tasks
+  const taskIds = (tasks ?? []).map((t) => t.id)
+
+  const [{ data: allNotes }, { data: allNagLogs }] = await Promise.all([
+    taskIds.length > 0
+      ? supabaseAdmin
+          .from('task_notes')
+          .select('id, task_id, content, created_at, author_email')
+          .in('task_id', taskIds)
+          .order('created_at', { ascending: true })
+      : Promise.resolve({ data: [] }),
+    taskIds.length > 0
+      ? supabaseAdmin
+          .from('nag_logs')
+          .select('id, task_id, sent_at, subject')
+          .in('task_id', taskIds)
+          .order('sent_at', { ascending: true })
+      : Promise.resolve({ data: [] }),
+  ])
+
+  type NoteRow = { id: string; task_id: string; content: string; created_at: string; author_email: string | null }
+  type NagRow = { id: string; task_id: string; sent_at: string; subject: string | null }
+
+  const notesByTask = new Map<string, NoteRow[]>()
+  for (const note of (allNotes ?? []) as NoteRow[]) {
+    notesByTask.set(note.task_id, [...(notesByTask.get(note.task_id) ?? []), note])
+  }
+
+  const nagsByTask = new Map<string, NagRow[]>()
+  for (const nag of (allNagLogs ?? []) as NagRow[]) {
+    nagsByTask.set(nag.task_id, [...(nagsByTask.get(nag.task_id) ?? []), nag])
+  }
+
   const tasksByOwner = new Map<string, typeof tasks>()
   for (const task of tasks ?? []) {
     tasksByOwner.set(task.owner_id, [...(tasksByOwner.get(task.owner_id) ?? []), task])
@@ -191,7 +224,35 @@ export default async function PortalTokenPage({
                             </div>
                             <PortalCompleteButton doneToken={task.done_token} />
                           </div>
-                          <PortalAddNote taskId={task.id} portalToken={token} />
+                          {(nagsByTask.get(task.id) ?? []).length > 0 && (
+                            <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+                              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-faint)' }}>
+                                Reminder history
+                              </p>
+                              <div className="flex flex-col gap-1">
+                                {(nagsByTask.get(task.id) ?? []).map((nag) => (
+                                  <p key={nag.id} className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    {new Date(nag.sent_at).toLocaleString('en-GB', {
+                                      timeZone: 'Europe/London',
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                    {nag.subject && (
+                                      <span style={{ color: 'var(--text-faint)' }}> · {nag.subject}</span>
+                                    )}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <PortalAddNote
+                            taskId={task.id}
+                            portalToken={token}
+                            initialNotes={notesByTask.get(task.id) ?? []}
+                          />
                         </div>
                       )
                     })}

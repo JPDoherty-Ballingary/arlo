@@ -6,7 +6,3 @@ CREATE TABLE IF NOT EXISTS recipient_sessions (
   token      TEXT        NOT NULL UNIQUE,
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS recipient_sessions_token_idx ON recipient_sessions (token);
-CREATE INDEX IF NOT EXISTS recipient_sessions_email_idx ON recipient_sessions (email);
