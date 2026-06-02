@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import ProjectSelect, { type Project } from '@/app/components/project-select'
 
 type Contact = { id: string; email: string; name: string | null }
 
@@ -14,6 +15,7 @@ type Task = {
   deadline: string | null
   frequency_hours: number
   scheduled_start_at: string | null
+  project_id: string | null
 }
 
 type Props = {
@@ -65,6 +67,8 @@ export default function TaskEditForm({ task, onCancel, onSaved }: Props) {
   const [scheduledStart, setScheduledStart] = useState(toDatetimeLocal(task.scheduled_start_at))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectId, setProjectId] = useState<string | null>(task.project_id)
 
   // Contact selector
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -80,6 +84,12 @@ export default function TaskEditForm({ task, onCancel, onSaved }: Props) {
       try {
         const res = await fetch('/api/contacts')
         if (res.ok) setContacts(await res.json())
+      } catch {}
+    })()
+    void (async () => {
+      try {
+        const res = await fetch('/api/projects')
+        if (res.ok) setProjects(await res.json())
       } catch {}
     })()
   }, [])
@@ -136,6 +146,7 @@ export default function TaskEditForm({ task, onCancel, onSaved }: Props) {
           deadline: deadline ? new Date(deadline).toISOString() : null,
           frequency_hours: frequency,
           scheduled_start_at: scheduledStart ? new Date(scheduledStart).toISOString() : null,
+          project_id: projectId ?? null,
         }),
       })
       const data = await res.json()
@@ -245,6 +256,19 @@ export default function TaskEditForm({ task, onCancel, onSaved }: Props) {
               {selectedContact.email}
             </p>
           )}
+        </div>
+
+        {/* Project */}
+        <div>
+          <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
+            Project <span style={{ color: 'var(--text-faint)' }}>(optional)</span>
+          </label>
+          <ProjectSelect
+            projects={projects}
+            value={projectId}
+            onChange={setProjectId}
+            onProjectCreated={(p) => setProjects((prev) => [...prev, p].sort((a, b) => a.name.localeCompare(b.name)))}
+          />
         </div>
 
         {/* Urgency */}

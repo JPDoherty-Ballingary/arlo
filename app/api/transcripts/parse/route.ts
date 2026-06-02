@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { transcript } = body
+  const { transcript, meetingTitle, projectId } = body
 
   if (!transcript?.trim()) {
     return NextResponse.json({ error: 'Transcript is required' }, { status: 400 })
@@ -83,6 +83,8 @@ ${transcript}`,
     owner_id: user.id,
     raw_text: transcript,
     parsed_tasks: parsed,
+    title: meetingTitle?.trim() || null,
+    project_id: projectId || null,
   })
 
   return NextResponse.json(parsed)

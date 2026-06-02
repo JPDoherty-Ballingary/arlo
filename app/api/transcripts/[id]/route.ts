@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
@@ -27,9 +27,15 @@ export async function PATCH(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
+  const body = await request.json().catch(() => ({}))
+  const updates: Record<string, unknown> =
+    typeof body.title === 'string'
+      ? { title: body.title.trim() || null }
+      : { tasks_saved_at: new Date().toISOString() }
+
   const { error: updateError } = await supabase
     .from('transcripts')
-    .update({ tasks_saved_at: new Date().toISOString() })
+    .update(updates)
     .eq('id', id)
 
   if (updateError) {

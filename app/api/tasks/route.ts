@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { title, context, recipient_email, recipient_name, urgency, deadline, frequency_hours } =
+  const { title, context, recipient_email, recipient_name, urgency, deadline, frequency_hours, project_id } =
     body
 
   if (!title?.trim() || !recipient_email?.trim()) {
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       deadline: deadline || null,
       frequency_hours: frequency_hours || 24,
       scheduled_start_at: scheduled_start_at || null,
+      project_id: project_id || null,
     })
     .select()
     .single()

@@ -15,6 +15,7 @@ type Task = {
   frequency_hours: number
   scheduled_start_at: string | null
   status: 'active' | 'paused' | 'done'
+  project_id: string | null
 }
 
 export default function TaskActions({ task }: { task: Task }) {

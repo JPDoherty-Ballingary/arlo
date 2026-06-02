@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ProjectPill from '@/app/components/project-pill'
+
+type Project = { id: string; name: string; color: string }
 
 type Task = {
   id: string
@@ -16,6 +19,7 @@ type Task = {
   owner_notified_of_claim: boolean
   scheduled_start_at: string | null
   note_count: number
+  project_id: string | null
 }
 
 const URGENCY_BADGE: Record<string, { label: string }> = {
@@ -51,7 +55,7 @@ function formatLastNagged(lastNaggedAt: string | null): string {
   return `Last nagged ${days}d ago`
 }
 
-export default function TaskCard({ task }: { task: Task }) {
+export default function TaskCard({ task, project }: { task: Task; project?: Project }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
   const [addingNote, setAddingNote] = useState(false)
@@ -111,6 +115,7 @@ export default function TaskCard({ task }: { task: Task }) {
             <h3 className="font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
               {task.title}
             </h3>
+            {project && <ProjectPill name={project.name} color={project.color} />}
             {isPaused && (
               <span
                 className="text-xs px-2 py-0.5 rounded-full font-medium"

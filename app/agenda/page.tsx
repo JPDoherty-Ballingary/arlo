@@ -13,7 +13,7 @@ export default async function AgendaPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: agendas }, { data: recipients }] = await Promise.all([
+  const [{ data: agendas }, { data: recipients }, { data: projects }] = await Promise.all([
     supabase
       .from('agendas')
       .select('*')
@@ -24,6 +24,11 @@ export default async function AgendaPage() {
       .select('email, name')
       .eq('owner_id', user.id)
       .order('name', { ascending: true, nullsFirst: false }),
+    supabase
+      .from('projects')
+      .select('id, name, color')
+      .eq('owner_id', user.id)
+      .order('name', { ascending: true }),
   ])
 
   return (
@@ -32,6 +37,7 @@ export default async function AgendaPage() {
       <AgendaClient
         initialAgendas={agendas ?? []}
         recipients={(recipients ?? []) as { email: string; name: string | null }[]}
+        projects={(projects ?? []) as { id: string; name: string; color: string }[]}
       />
     </div>
   )

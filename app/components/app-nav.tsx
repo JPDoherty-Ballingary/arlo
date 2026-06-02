@@ -27,6 +27,9 @@ export default function AppNav({ userEmail }: { userEmail?: string }) {
         <Link href="/agenda" className="text-sm transition-colors" style={{ color: 'var(--text-muted)' }}>
           Agenda
         </Link>
+        <Link href="/projects" className="text-sm transition-colors" style={{ color: 'var(--text-muted)' }}>
+          Projects
+        </Link>
         <Link href="/tasks/new" className="btn-green px-3 py-1.5 text-sm font-semibold rounded-md">
           New task
         </Link>

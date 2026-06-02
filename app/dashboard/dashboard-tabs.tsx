@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import TaskCard from './task-card'
+import { projectHex, projectBg } from '@/app/components/project-pill'
+
+type Project = { id: string; name: string; color: string }
 
 type Task = {
   id: string
@@ -17,23 +20,75 @@ type Task = {
   owner_notified_of_claim: boolean
   scheduled_start_at: string | null
   note_count: number
+  project_id: string | null
 }
 
-export default function DashboardTabs({ tasks }: { tasks: Task[] }) {
+export default function DashboardTabs({
+  tasks,
+  projects,
+}: {
+  tasks: Task[]
+  projects: Project[]
+}) {
   const [tab, setTab] = useState<'active' | 'paused'>('active')
+  const [projectFilter, setProjectFilter] = useState<string | null>(null)
+
+  const projectMap = Object.fromEntries(projects.map((p) => [p.id, p]))
 
   const active = tasks.filter((t) => t.status === 'active')
   const paused = tasks.filter((t) => t.status === 'paused')
-  const shown = tab === 'active' ? active : paused
+  const tabTasks = tab === 'active' ? active : paused
+
+  const shown = projectFilter
+    ? tabTasks.filter((t) => t.project_id === projectFilter)
+    : tabTasks
+
+  // Only show projects that have at least one task (any status)
+  const projectsWithTasks = projects.filter((p) =>
+    tasks.some((t) => t.project_id === p.id)
+  )
 
   function tabClass(selected: boolean) {
-    return `px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-      selected ? 'btn-green' : ''
-    }`
+    return `px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${selected ? 'btn-green' : ''}`
   }
 
   return (
     <div>
+      {/* Project filter pills */}
+      {projectsWithTasks.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <button
+            onClick={() => setProjectFilter(null)}
+            className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+            style={
+              projectFilter === null
+                ? { background: 'var(--text-primary)', color: 'var(--bg)' }
+                : { background: 'var(--border)', color: 'var(--text-muted)' }
+            }
+          >
+            All
+          </button>
+          {projectsWithTasks.map((p) => {
+            const active = projectFilter === p.id
+            return (
+              <button
+                key={p.id}
+                onClick={() => setProjectFilter(active ? null : p.id)}
+                className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+                style={
+                  active
+                    ? { background: projectHex(p.color), color: '#fff' }
+                    : { background: projectBg(p.color), color: projectHex(p.color) }
+                }
+              >
+                {p.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Active / Paused tabs */}
       <div className="flex items-center gap-2 mb-6">
         <button
           onClick={() => setTab('active')}
@@ -58,12 +113,18 @@ export default function DashboardTabs({ tasks }: { tasks: Task[] }) {
           className="rounded-lg p-8 text-center"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
-          <p style={{ color: 'var(--text-muted)' }}>No paused tasks.</p>
+          <p style={{ color: 'var(--text-muted)' }}>
+            {projectFilter ? 'No tasks in this project.' : 'No paused tasks.'}
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              project={task.project_id ? projectMap[task.project_id] : undefined}
+            />
           ))}
         </div>
       )}

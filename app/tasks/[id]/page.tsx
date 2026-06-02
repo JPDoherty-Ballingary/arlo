@@ -7,6 +7,7 @@ import AppNav from '@/app/components/app-nav'
 import TaskActions from './task-actions'
 import NagLogEntry from './nag-log-entry'
 import NotesSection from './notes-section'
+import ProjectPill from '@/app/components/project-pill'
 
 export const metadata: Metadata = { title: 'Task' }
 
@@ -65,7 +66,7 @@ export default async function TaskDetailPage({
 
   if (taskError || !task) redirect('/dashboard')
 
-  const [{ data: nagLogs }, { data: recipient }, { data: noteRows }] = await Promise.all([
+  const [{ data: nagLogs }, { data: recipient }, { data: noteRows }, { data: project }] = await Promise.all([
     supabaseAdmin
       .from('nag_logs')
       .select('id, sent_at, tone_used, subject, body')
@@ -83,6 +84,14 @@ export default async function TaskDetailPage({
       .eq('task_id', id)
       .eq('owner_id', user.id)
       .order('created_at', { ascending: true }),
+    task.project_id
+      ? supabase
+          .from('projects')
+          .select('id, name, color')
+          .eq('id', task.project_id)
+          .eq('owner_id', user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   const deadline = formatDeadline(task.deadline)
@@ -154,6 +163,13 @@ export default async function TaskDetailPage({
                 day: 'numeric', month: 'short', year: 'numeric',
                 hour: '2-digit', minute: '2-digit',
               })}
+            </div>
+          )}
+
+          {/* Project */}
+          {project && (
+            <div className="mb-4">
+              <ProjectPill name={project.name} color={project.color} />
             </div>
           )}
 

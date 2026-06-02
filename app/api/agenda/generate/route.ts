@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { title, meetingDate, attendeeEmails } = await request.json()
+  const { title, meetingDate, attendeeEmails, projectId } = await request.json()
   if (!title?.trim() || !meetingDate) {
     return NextResponse.json({ error: 'Title and meeting date are required' }, { status: 400 })
   }
@@ -23,19 +23,32 @@ export async function POST(request: Request) {
     { data: recipients },
     { data: profile },
   ] = await Promise.all([
-    supabaseAdmin
-      .from('tasks')
-      .select(
-        'title, recipient_name, recipient_email, nag_count, deadline, urgency, last_nagged_at, scheduled_start_at, owner_notified_of_claim'
-      )
-      .eq('owner_id', user.id)
-      .eq('status', 'active'),
-    supabaseAdmin
-      .from('tasks')
-      .select('title, recipient_name, recipient_email, deadline, done_at')
-      .eq('owner_id', user.id)
-      .eq('status', 'done')
-      .gte('done_at', sevenDaysAgo),
+    (projectId
+      ? supabaseAdmin
+          .from('tasks')
+          .select('title, recipient_name, recipient_email, nag_count, deadline, urgency, last_nagged_at, scheduled_start_at, owner_notified_of_claim')
+          .eq('owner_id', user.id)
+          .eq('status', 'active')
+          .eq('project_id', projectId)
+      : supabaseAdmin
+          .from('tasks')
+          .select('title, recipient_name, recipient_email, nag_count, deadline, urgency, last_nagged_at, scheduled_start_at, owner_notified_of_claim')
+          .eq('owner_id', user.id)
+          .eq('status', 'active')),
+    (projectId
+      ? supabaseAdmin
+          .from('tasks')
+          .select('title, recipient_name, recipient_email, deadline, done_at')
+          .eq('owner_id', user.id)
+          .eq('status', 'done')
+          .gte('done_at', sevenDaysAgo)
+          .eq('project_id', projectId)
+      : supabaseAdmin
+          .from('tasks')
+          .select('title, recipient_name, recipient_email, deadline, done_at')
+          .eq('owner_id', user.id)
+          .eq('status', 'done')
+          .gte('done_at', sevenDaysAgo)),
     supabaseAdmin
       .from('recipients')
       .select('email, name, reliability_score')
@@ -121,6 +134,20 @@ Keep items concise. Be honest about urgency. If a recipient has a reliability sc
     }
     agendaContent = JSON.parse(match[0])
   }
+
+  const agenda_obj = agendaContent as { sections?: unknown[] }
+  const diaryCheck = {
+    heading: 'Diary Check',
+    items: [
+      {
+        text: 'Review upcoming meetings and confirm attendance',
+        owner: null,
+        urgency: null,
+        note: 'Standing item — check calendars for the week ahead',
+      },
+    ],
+  }
+  agenda_obj.sections = [diaryCheck, ...(agenda_obj.sections ?? [])]
 
   const { data: agenda, error } = await supabaseAdmin
     .from('agendas')

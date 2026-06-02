@@ -3,8 +3,12 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import AppNav from '@/app/components/app-nav'
+import TranscriptTitleCell from './title-cell'
+import ProjectPill from '@/app/components/project-pill'
 
 export const metadata: Metadata = { title: 'Transcripts' }
+
+type Project = { id: string; name: string; color: string }
 
 type Transcript = {
   id: string
@@ -12,6 +16,7 @@ type Transcript = {
   created_at: string
   parsed_tasks: unknown[]
   tasks_saved_at: string | null
+  project_id: string | null
 }
 
 function formatDate(iso: string): string {
@@ -32,22 +37,39 @@ export default async function TranscriptsPage() {
 
   if (!user) redirect('/login')
 
-  const { data: transcripts } = await supabase
-    .from('transcripts')
-    .select('id, title, created_at, parsed_tasks, tasks_saved_at')
-    .eq('owner_id', user.id)
-    .order('created_at', { ascending: false })
+  const [{ data: transcripts }, { data: projectRows }] = await Promise.all([
+    supabase
+      .from('transcripts')
+      .select('id, title, created_at, parsed_tasks, tasks_saved_at, project_id')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('projects')
+      .select('id, name, color')
+      .eq('owner_id', user.id),
+  ])
 
   const rows = (transcripts ?? []) as Transcript[]
+  const projectMap: Record<string, Project> = Object.fromEntries(
+    (projectRows ?? []).map((p) => [p.id, p])
+  )
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <AppNav userEmail={user.email} />
 
       <main className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>
-          Transcripts
-        </h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            Transcripts
+          </h1>
+          <Link
+            href="/transcripts/new"
+            className="btn-green px-4 py-2 rounded-md font-semibold text-sm"
+          >
+            + New transcript
+          </Link>
+        </div>
 
         {rows.length === 0 ? (
           <div
@@ -77,13 +99,17 @@ export default async function TranscriptsPage() {
                   style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                      {t.title || 'Untitled meeting'}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
+                    <TranscriptTitleCell transcriptId={t.id} title={t.title} />
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
                         {formatDate(t.created_at)}
                       </p>
+                      {t.project_id && projectMap[t.project_id] && (
+                        <ProjectPill
+                          name={projectMap[t.project_id].name}
+                          color={projectMap[t.project_id].color}
+                        />
+                      )}
                       <span
                         className="text-xs px-2 py-0.5 rounded-full font-medium"
                         style={{

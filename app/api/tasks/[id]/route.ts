@@ -49,7 +49,7 @@ export async function PATCH(
 
   // ── Field edit ────────────────────────────────────────────────────────────
   if (!status) {
-    const { title, context, recipient_email, recipient_name, urgency, deadline, frequency_hours, scheduled_start_at } = body
+    const { title, context, recipient_email, recipient_name, urgency, deadline, frequency_hours, scheduled_start_at, project_id } = body
 
     if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     if (!recipient_email?.trim()) return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
@@ -65,6 +65,7 @@ export async function PATCH(
         deadline: deadline || null,
         frequency_hours: frequency_hours || 24,
         scheduled_start_at: scheduled_start_at || null,
+        project_id: project_id ?? null,
       })
       .eq('id', id)
       .select()

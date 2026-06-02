@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AppNav from '@/app/components/app-nav'
+import ProjectSelect, { type Project } from '@/app/components/project-select'
 
 type Contact = { id: string; email: string; name: string | null }
 
@@ -44,6 +45,8 @@ export default function NewTaskPage() {
   const [scheduledStart, setScheduledStart] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectId, setProjectId] = useState<string | null>(null)
 
   // Contact selector state
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -75,12 +78,18 @@ export default function NewTaskPage() {
     })()
   }, [])
 
-  // Fetch contacts
+  // Fetch contacts and projects
   useEffect(() => {
     void (async () => {
       try {
         const res = await fetch('/api/contacts')
         if (res.ok) setContacts(await res.json())
+      } catch {}
+    })()
+    void (async () => {
+      try {
+        const res = await fetch('/api/projects')
+        if (res.ok) setProjects(await res.json())
       } catch {}
     })()
   }, [])
@@ -140,6 +149,7 @@ export default function NewTaskPage() {
       deadline: deadline ? new Date(deadline).toISOString() : null,
       frequency_hours: frequency,
       scheduled_start_at: scheduledStart ? new Date(scheduledStart).toISOString() : null,
+      project_id: projectId || null,
     }
 
     const res = await fetch('/api/tasks', {
@@ -268,6 +278,19 @@ export default function NewTaskPage() {
             >
               Add new contact
             </Link>
+          </div>
+
+          {/* Project */}
+          <div>
+            <label className="block text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>
+              Project <span style={{ color: 'var(--text-faint)' }}>(optional)</span>
+            </label>
+            <ProjectSelect
+              projects={projects}
+              value={projectId}
+              onChange={setProjectId}
+              onProjectCreated={(p) => setProjects((prev) => [...prev, p].sort((a, b) => a.name.localeCompare(b.name)))}
+            />
           </div>
 
           {/* Urgency */}

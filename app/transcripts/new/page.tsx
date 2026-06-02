@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AppNav from '@/app/components/app-nav'
+import ProjectSelect, { type Project } from '@/app/components/project-select'
 
 type Recipient = {
   id: string
@@ -180,7 +181,10 @@ function RecipientAutocomplete({
 
 export default function TranscriptsNewPage() {
   const router = useRouter()
+  const [meetingTitle, setMeetingTitle] = useState('')
   const [transcript, setTranscript] = useState('')
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectId, setProjectId] = useState<string | null>(null)
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [tasks, setTasks] = useState<ParsedTask[] | null>(null)
@@ -205,6 +209,10 @@ export default function TranscriptsNewPage() {
       .then(({ data }) => {
         if (data) setExistingTasks(data)
       })
+    fetch('/api/projects')
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setProjects(data) })
+      .catch(() => {})
   }, [])
 
   const allEmailsFilled =
@@ -221,7 +229,7 @@ export default function TranscriptsNewPage() {
     const res = await fetch('/api/transcripts/parse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript }),
+      body: JSON.stringify({ transcript, meetingTitle, projectId }),
     })
 
     const json = await res.json()
@@ -342,6 +350,31 @@ export default function TranscriptsNewPage() {
         </h1>
 
         <form onSubmit={handleParse} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }}>
+              Meeting name <span style={{ color: '#22d45f' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={meetingTitle}
+              onChange={(e) => setMeetingTitle(e.target.value)}
+              required
+              className="arlo-input"
+              placeholder="e.g. Weekly ops meeting, Monday 2nd June"
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }}>
+              Project <span style={{ color: 'var(--text-faint)' }}>(optional)</span>
+            </label>
+            <ProjectSelect
+              projects={projects}
+              value={projectId}
+              onChange={setProjectId}
+              onProjectCreated={(p) => setProjects((prev) => [...prev, p].sort((a, b) => a.name.localeCompare(b.name)))}
+            />
+          </div>
+
           <label className="block text-sm mb-1" style={{ color: 'var(--text-muted)' }}>
             Paste your meeting transcript
           </label>

@@ -35,6 +35,7 @@ type Agenda = {
 type Props = {
   initialAgendas: Agenda[]
   recipients: { email: string; name: string | null }[]
+  projects: { id: string; name: string; color: string }[]
 }
 
 function fmtDate(iso: string): string {
@@ -518,7 +519,7 @@ function AgendaPreview({
   )
 }
 
-export default function AgendaClient({ initialAgendas, recipients }: Props) {
+export default function AgendaClient({ initialAgendas, recipients, projects }: Props) {
   const [agendas, setAgendas] = useState<Agenda[]>(initialAgendas)
   const [currentAgenda, setCurrentAgenda] = useState<Agenda | null>(initialAgendas[0] ?? null)
   const [generating, setGenerating] = useState(false)
@@ -529,6 +530,7 @@ export default function AgendaClient({ initialAgendas, recipients }: Props) {
   const [meetingDate, setMeetingDate] = useState('')
   const [attendeeEmails, setAttendeeEmails] = useState<string[]>([])
   const [emailInput, setEmailInput] = useState('')
+  const [projectId, setProjectId] = useState<string | null>(null)
 
   const previewRef = useRef<HTMLDivElement>(null)
 
@@ -561,7 +563,7 @@ export default function AgendaClient({ initialAgendas, recipients }: Props) {
       const res = await fetch('/api/agenda/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, meetingDate, attendeeEmails }),
+        body: JSON.stringify({ title, meetingDate, attendeeEmails, projectId }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -743,6 +745,30 @@ export default function AgendaClient({ initialAgendas, recipients }: Props) {
                 </div>
               )}
             </div>
+
+            {projects.length > 0 && (
+              <div>
+                <label
+                  className="block text-sm font-medium mb-1.5"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  Filter by project{' '}
+                  <span className="text-xs font-normal" style={{ color: 'var(--text-faint)' }}>
+                    (optional — only includes tasks from this project)
+                  </span>
+                </label>
+                <select
+                  value={projectId ?? ''}
+                  onChange={(e) => setProjectId(e.target.value || null)}
+                  className="arlo-input"
+                >
+                  <option value="">All tasks</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
