@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import Logo from '@/app/components/logo'
 import PortalCompleteButton from './portal-complete-button'
 import PortalAddNote from './portal-add-note'
+import PortalPrioritiseButton from './portal-prioritise-button'
 
 const URGENCY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 }
 
@@ -198,6 +199,7 @@ export default async function PortalTokenPage({
                       return (
                         <div
                           key={task.id}
+                          data-portal-task-id={task.id}
                           className="rounded-lg p-5"
                           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                         >
@@ -260,6 +262,13 @@ export default async function PortalTokenPage({
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Prioritise button — only shown when there are active tasks */}
+        {tasks && tasks.length > 0 && (
+          <div className="mb-10">
+            <PortalPrioritiseButton token={token} />
           </div>
         )}
 
