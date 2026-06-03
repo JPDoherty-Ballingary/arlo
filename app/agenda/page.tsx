@@ -37,6 +37,8 @@ export default async function AgendaPage() {
         .maybeSingle(),
     ])
 
+  console.log('[agenda page] profile query result:', profile, '| hasOutlook:', !!profile?.microsoft_access_token)
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <AppNav userEmail={user.email} />

@@ -10,7 +10,9 @@ export async function GET() {
 
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  console.log('[outlook/calendar] user:', user.id)
   const token = await getValidMicrosoftToken(user.id)
+  console.log('[outlook/calendar] token present:', !!token)
   if (!token) return NextResponse.json({ error: 'not_connected' }, { status: 401 })
 
   const now = new Date().toISOString()
@@ -31,10 +33,13 @@ export async function GET() {
   )
 
   if (!response.ok) {
+    const errBody = await response.text()
+    console.error('[outlook/calendar] Graph API error:', response.status, errBody)
     return NextResponse.json({ error: 'Failed to fetch calendar' }, { status: 502 })
   }
 
   const { value: events } = await response.json()
+  console.log('[outlook/calendar] Graph returned', events?.length ?? 0, 'events')
 
   const mapped = (events ?? []).map((e: CalendarEvent) => ({
     id: e.id,

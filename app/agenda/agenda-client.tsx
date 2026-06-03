@@ -570,22 +570,32 @@ export default function AgendaClient({ initialAgendas, recipients, projects, has
   const [projectId, setProjectId] = useState<string | null>(null)
 
   const [outlookEvents, setOutlookEvents] = useState<OutlookEvent[]>([])
-  const [outlookLoading, setOutlookLoading] = useState(hasOutlook)
-  const [outlookError, setOutlookError] = useState<string | null>(null)
+  // 'loading' | 'disconnected' | 'empty' | 'loaded' | 'error'
+  const [outlookStatus, setOutlookStatus] = useState<'loading' | 'disconnected' | 'empty' | 'loaded' | 'error'>('loading')
 
   const previewRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!hasOutlook) return
+    console.log('[agenda] hasOutlook prop from server:', hasOutlook)
+    console.log('[agenda] calling /api/outlook/calendar')
     fetch('/api/outlook/calendar')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.events) setOutlookEvents(data.events)
-        else setOutlookError('No upcoming meetings found in the next 14 days.')
+      .then(async (r) => {
+        const data = await r.json()
+        console.log('[agenda] calendar response — status:', r.status, 'body:', data)
+        if (r.status === 401 && data.error === 'not_connected') {
+          setOutlookStatus('disconnected')
+        } else if (r.ok && Array.isArray(data.events)) {
+          setOutlookEvents(data.events)
+          setOutlookStatus(data.events.length > 0 ? 'loaded' : 'empty')
+        } else {
+          setOutlookStatus('error')
+        }
       })
-      .catch(() => setOutlookError('No upcoming meetings found in the next 14 days.'))
-      .finally(() => setOutlookLoading(false))
-  }, [hasOutlook])
+      .catch((err) => {
+        console.error('[agenda] calendar fetch error:', err)
+        setOutlookStatus('error')
+      })
+  }, [])
 
   function addEmail(email: string) {
     const normalized = email.trim().toLowerCase()
@@ -693,74 +703,78 @@ export default function AgendaClient({ initialAgendas, recipients, projects, has
           Pick a meeting from your calendar
         </h2>
 
-        {hasOutlook ? (
-          outlookLoading ? (
-            <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
-              Loading your calendar…
-            </p>
-          ) : outlookError || outlookEvents.length === 0 ? (
-            <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
-              {outlookError ?? 'No upcoming meetings found in the next 14 days.'}
-            </p>
-          ) : (
-            <div className="mt-3 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-              {outlookEvents.map((event) => {
-                const recipientEmails = new Set(recipients.map((r) => r.email))
-                const matchedAttendees = event.attendees.filter((a) => recipientEmails.has(a))
+        {outlookStatus === 'loading' && (
+          <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
+            Loading your calendar…
+          </p>
+        )}
 
-                return (
-                  <div
-                    key={event.id}
-                    className="flex items-center justify-between gap-4 px-4 py-3"
-                    style={{ borderBottom: '1px solid var(--border)' }}
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                        {event.subject}
-                      </p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {fmtMeetingTime(event.start.dateTime)}
-                        {event.attendees.length > 0 && (
-                          <span style={{ color: 'var(--text-faint)' }}>
-                            {' '}· {event.attendees.length} attendee{event.attendees.length !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={generating}
-                      onClick={() => {
-                        const dt = toDatetimeLocal(event.start.dateTime)
-                        setTitle(event.subject)
-                        setMeetingDate(dt)
-                        setAttendeeEmails(matchedAttendees)
-                        handleGenerate({
-                          title: event.subject,
-                          meetingDate: dt,
-                          attendeeEmails: matchedAttendees,
-                        })
-                        setTimeout(
-                          () => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-                          100
-                        )
-                      }}
-                      className="shrink-0 btn-green text-xs px-3 py-1.5 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Generate agenda →
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          )
-        ) : (
+        {outlookStatus === 'disconnected' && (
           <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
             <a href="/settings" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>
               Connect your Outlook calendar in Settings
             </a>{' '}
             to pick meetings directly from your diary →
           </p>
+        )}
+
+        {(outlookStatus === 'empty' || outlookStatus === 'error') && (
+          <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
+            No upcoming meetings found in the next 14 days.
+          </p>
+        )}
+
+        {outlookStatus === 'loaded' && (
+          <div className="mt-3 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            {outlookEvents.map((event) => {
+              const recipientEmails = new Set(recipients.map((r) => r.email))
+              const matchedAttendees = event.attendees.filter((a) => recipientEmails.has(a))
+
+              return (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between gap-4 px-4 py-3"
+                  style={{ borderBottom: '1px solid var(--border)' }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      {event.subject}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {fmtMeetingTime(event.start.dateTime)}
+                      {event.attendees.length > 0 && (
+                        <span style={{ color: 'var(--text-faint)' }}>
+                          {' '}· {event.attendees.length} attendee{event.attendees.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={generating}
+                    onClick={() => {
+                      const dt = toDatetimeLocal(event.start.dateTime)
+                      setTitle(event.subject)
+                      setMeetingDate(dt)
+                      setAttendeeEmails(matchedAttendees)
+                      handleGenerate({
+                        title: event.subject,
+                        meetingDate: dt,
+                        attendeeEmails: matchedAttendees,
+                      })
+                      setTimeout(
+                        () => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                        100
+                      )
+                    }}
+                    className="shrink-0 btn-green text-xs px-3 py-1.5 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Generate agenda →
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 
