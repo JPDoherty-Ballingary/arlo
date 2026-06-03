@@ -93,7 +93,7 @@ export default function PrioritiseButton() {
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10)',
+          boxShadow: '0 4px 24px rgba(34,212,95,0.18), 0 1px 4px rgba(34,212,95,0.10)',
         }}
       >
         <p className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
