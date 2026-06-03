@@ -35,37 +35,33 @@ const TYPE_STYLE: Record<ActionType, { label: string; bg: string; color: string 
 
 export default function PrioritiseButton() {
   const [selectedMinutes, setSelectedMinutes] = useState(30)
-  const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle')
+  const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PrioritiseResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [skipOpen, setSkipOpen] = useState(false)
 
-  async function handleClick() {
-    setStatus('loading')
+  async function handlePick(minutes: number) {
+    setSelectedMinutes(minutes)
+    setLoading(true)
     setError(null)
     setSkipOpen(false)
     try {
       const res = await fetch('/api/tasks/prioritise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ availableMinutes: selectedMinutes }),
+        body: JSON.stringify({ availableMinutes: minutes }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || 'Something went wrong')
-        setStatus('idle')
-        return
-      }
+      if (!res.ok) { setError(data.error || 'Something went wrong'); return }
       setResult(data)
-      setStatus('done')
     } catch {
       setError('Something went wrong')
-      setStatus('idle')
+    } finally {
+      setLoading(false)
     }
   }
 
   function handleClose() {
-    setStatus('idle')
     setResult(null)
     setError(null)
     setSkipOpen(false)
@@ -75,58 +71,76 @@ export default function PrioritiseButton() {
 
   return (
     <>
-      {/* Banner row */}
-      <div
-        className="rounded-lg px-5 py-4 flex flex-wrap items-center gap-3 mb-8"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <button
-          onClick={handleClick}
-          disabled={status === 'loading'}
-          className="btn-green px-5 py-2 rounded-md text-sm font-semibold disabled:opacity-60 shrink-0"
-        >
-          {status === 'loading' ? 'Arlo is thinking…' : 'What should I do right now? →'}
-        </button>
+      <style>{`
+        .prio-time-btn {
+          transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1),
+                      background 0.15s ease, color 0.15s ease,
+                      border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .prio-time-btn:hover:not(:disabled) {
+          transform: scale(1.08);
+          background: #22d45f;
+          color: #fff;
+          border-color: #22d45f;
+          box-shadow: 0 3px 14px rgba(34,212,95,0.35);
+        }
+        .prio-time-btn:active:not(:disabled) { transform: scale(0.95); }
+      `}</style>
 
-        <div className="flex items-center gap-1 flex-wrap">
+      {/* Card */}
+      <div
+        className="rounded-2xl flex flex-col items-center text-center px-8 py-10 mb-8"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10)',
+        }}
+      >
+        <p className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          What should I do right now?
+        </p>
+        <p className="text-sm mb-7" style={{ color: 'var(--text-muted)' }}>
+          {loading ? 'Arlo is thinking…' : 'Pick your time window and Arlo will tell you.'}
+        </p>
+
+        <div className="flex flex-wrap justify-center gap-3">
           {TIME_OPTIONS.map((opt) => (
             <button
               key={opt.minutes}
               type="button"
-              onClick={() => setSelectedMinutes(opt.minutes)}
-              className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
-              style={
-                selectedMinutes === opt.minutes
-                  ? { background: 'var(--text-primary)', color: 'var(--bg)' }
-                  : { background: 'var(--border)', color: 'var(--text-muted)' }
-              }
+              disabled={loading}
+              onClick={() => handlePick(opt.minutes)}
+              className="prio-time-btn px-5 py-2.5 rounded-full text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: loading && selectedMinutes === opt.minutes ? '#22d45f' : 'var(--bg)',
+                color: loading && selectedMinutes === opt.minutes ? '#fff' : 'var(--text-muted)',
+                border: '1px solid var(--border)',
+              }}
             >
-              {opt.label}
+              {loading && selectedMinutes === opt.minutes ? 'Thinking…' : opt.label}
             </button>
           ))}
         </div>
 
-        {error && (
-          <p className="text-xs text-red-400 w-full -mt-1">{error}</p>
-        )}
+        {error && <p className="text-xs text-red-400 mt-5">{error}</p>}
       </div>
 
       {/* Modal */}
-      {status === 'done' && result && (
+      {result && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.6)' }}
+          style={{ background: 'rgba(0,0,0,0.55)' }}
           onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}
         >
           <div
-            className="relative w-full max-w-lg rounded-xl flex flex-col overflow-hidden"
+            className="relative w-full max-w-lg rounded-2xl flex flex-col overflow-hidden"
             style={{
               background: 'var(--bg)',
               border: '1px solid var(--border)',
               maxHeight: '90vh',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
             }}
           >
-            {/* Header */}
             <div className="px-6 pt-6 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
               <p className="text-base font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
                 {result.greeting}
@@ -136,15 +150,18 @@ export default function PrioritiseButton() {
               </p>
             </div>
 
-            {/* Actions */}
             <div className="overflow-y-auto flex-1 px-6 py-4 flex flex-col gap-3">
               {result.actions.map((action, i) => {
-                const typeStyle = TYPE_STYLE[action.type] ?? TYPE_STYLE.action
+                const ts = TYPE_STYLE[action.type] ?? TYPE_STYLE.action
                 return (
                   <div
                     key={i}
-                    className="rounded-lg p-4"
-                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                    className="rounded-xl p-4"
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                    }}
                   >
                     <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                       {action.action}
@@ -153,16 +170,10 @@ export default function PrioritiseButton() {
                       {action.why}
                     </p>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className="text-xs px-2 py-0.5 rounded font-medium"
-                        style={{ background: typeStyle.bg, color: typeStyle.color }}
-                      >
-                        {typeStyle.label}
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: ts.bg, color: ts.color }}>
+                        {ts.label}
                       </span>
-                      <span
-                        className="text-xs px-2 py-0.5 rounded font-medium"
-                        style={{ background: 'var(--border)', color: 'var(--text-faint)' }}
-                      >
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--border)', color: 'var(--text-faint)' }}>
                         ~{action.estimated_minutes} min
                       </span>
                       {action.task_id && (
@@ -180,7 +191,6 @@ export default function PrioritiseButton() {
                 )
               })}
 
-              {/* Deprioritised section */}
               {result.skip && result.skip.length > 0 && (
                 <div className="mt-1">
                   <button
@@ -195,9 +205,7 @@ export default function PrioritiseButton() {
                   {skipOpen && (
                     <ul className="mt-2 flex flex-col gap-1 pl-3">
                       {result.skip.map((s, i) => (
-                        <li key={i} className="text-xs" style={{ color: 'var(--text-faint)' }}>
-                          {s}
-                        </li>
+                        <li key={i} className="text-xs" style={{ color: 'var(--text-faint)' }}>{s}</li>
                       ))}
                     </ul>
                   )}
@@ -205,11 +213,11 @@ export default function PrioritiseButton() {
               )}
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4" style={{ borderTop: '1px solid var(--border)' }}>
               <button
                 onClick={handleClose}
-                className="btn-green w-full py-2.5 rounded-md text-sm font-semibold"
+                className="btn-green w-full py-2.5 rounded-xl text-sm font-semibold"
+                style={{ color: '#fff' }}
               >
                 Got it
               </button>
