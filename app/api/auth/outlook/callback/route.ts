@@ -34,22 +34,28 @@ export async function GET(request: NextRequest) {
     }
   )
 
-  const { access_token, refresh_token, expires_in } = await tokenResponse.json()
+  const tokenBody = await tokenResponse.json()
+  console.log('[outlook/callback] token exchange status:', tokenResponse.status, 'has access_token:', !!tokenBody.access_token)
+
+  const { access_token, refresh_token, expires_in } = tokenBody
 
   const userResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
     headers: { Authorization: `Bearer ${access_token}` },
   })
   const { mail, userPrincipalName } = await userResponse.json()
+  console.log('[outlook/callback] microsoft email:', mail || userPrincipalName)
 
-  await supabaseAdmin
+  const { error: upsertError } = await supabaseAdmin
     .from('profiles')
-    .update({
+    .upsert({
+      id: user.id,
       microsoft_access_token: access_token,
       microsoft_refresh_token: refresh_token,
       microsoft_token_expiry: new Date(Date.now() + expires_in * 1000).toISOString(),
       microsoft_email: mail || userPrincipalName,
-    })
-    .eq('id', user.id)
+    }, { onConflict: 'id' })
+
+  console.log('[outlook/callback] upsert result:', { error: upsertError })
 
   return NextResponse.redirect(
     new URL('/settings?outlook=connected', process.env.NEXT_PUBLIC_APP_URL!)

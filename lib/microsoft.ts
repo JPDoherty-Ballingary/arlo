@@ -1,13 +1,24 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export async function getValidMicrosoftToken(userId: string) {
-  const { data: profile } = await supabaseAdmin
+  const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
     .select('microsoft_access_token, microsoft_refresh_token, microsoft_token_expiry')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
-  if (!profile?.microsoft_access_token) return null
+  console.log('[microsoft] getValidMicrosoftToken userId:', userId)
+  console.log('[microsoft] profile query result:', { profile, error: profileError })
+
+  if (profileError) {
+    console.error('[microsoft] profile query error:', profileError)
+    return null
+  }
+
+  if (!profile?.microsoft_access_token) {
+    console.log('[microsoft] no access token on profile — returning null')
+    return null
+  }
 
   const expiresAt = new Date(profile.microsoft_token_expiry)
   const needsRefresh = expiresAt < new Date(Date.now() + 5 * 60 * 1000)
