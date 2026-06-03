@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AppNav from '@/app/components/app-nav'
 import DashboardTabs from './dashboard-tabs'
+import PrioritiseButton from './prioritise-button'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
@@ -72,6 +73,7 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
             Your tasks
           </h1>
+          <PrioritiseButton />
           <DashboardTabs tasks={tasksWithNotes} projects={projects ?? []} />
         </section>
 
