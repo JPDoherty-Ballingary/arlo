@@ -32,10 +32,21 @@ type Agenda = {
   created_at: string
 }
 
+type OutlookEvent = {
+  id: string
+  subject: string
+  start: { dateTime: string; timeZone: string }
+  end: { dateTime: string; timeZone: string }
+  attendees: string[]
+  organizer: string | null
+  location: string | null
+}
+
 type Props = {
   initialAgendas: Agenda[]
   recipients: { email: string; name: string | null }[]
   projects: { id: string; name: string; color: string }[]
+  hasOutlook: boolean
 }
 
 function fmtDate(iso: string): string {
@@ -45,6 +56,32 @@ function fmtDate(iso: string): string {
     month: 'short',
     year: 'numeric',
   })
+}
+
+function fmtMeetingTime(iso: string): string {
+  const d = new Date(iso)
+  const day = d.toLocaleDateString('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  const time = d.toLocaleTimeString('en-GB', {
+    timeZone: 'Europe/London',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+  return `${day}, ${time}`
+}
+
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  )
 }
 
 function fmtDateTime(iso: string): string {
@@ -519,7 +556,7 @@ function AgendaPreview({
   )
 }
 
-export default function AgendaClient({ initialAgendas, recipients, projects }: Props) {
+export default function AgendaClient({ initialAgendas, recipients, projects, hasOutlook }: Props) {
   const [agendas, setAgendas] = useState<Agenda[]>(initialAgendas)
   const [currentAgenda, setCurrentAgenda] = useState<Agenda | null>(initialAgendas[0] ?? null)
   const [generating, setGenerating] = useState(false)
@@ -532,7 +569,23 @@ export default function AgendaClient({ initialAgendas, recipients, projects }: P
   const [emailInput, setEmailInput] = useState('')
   const [projectId, setProjectId] = useState<string | null>(null)
 
+  const [outlookEvents, setOutlookEvents] = useState<OutlookEvent[]>([])
+  const [outlookLoading, setOutlookLoading] = useState(hasOutlook)
+  const [outlookError, setOutlookError] = useState<string | null>(null)
+
   const previewRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!hasOutlook) return
+    fetch('/api/outlook/calendar')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.events) setOutlookEvents(data.events)
+        else setOutlookError('No upcoming meetings found in the next 14 days.')
+      })
+      .catch(() => setOutlookError('No upcoming meetings found in the next 14 days.'))
+      .finally(() => setOutlookLoading(false))
+  }, [hasOutlook])
 
   function addEmail(email: string) {
     const normalized = email.trim().toLowerCase()
@@ -555,15 +608,18 @@ export default function AgendaClient({ initialAgendas, recipients, projects }: P
     }
   }
 
-  async function handleGenerate() {
-    if (!title.trim() || !meetingDate) return
+  async function handleGenerate(overrides?: { title: string; meetingDate: string; attendeeEmails: string[] }) {
+    const t = overrides?.title ?? title
+    const md = overrides?.meetingDate ?? meetingDate
+    const ae = overrides?.attendeeEmails ?? attendeeEmails
+    if (!t.trim() || !md) return
     setGenerating(true)
     setError(null)
     try {
       const res = await fetch('/api/agenda/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, meetingDate, attendeeEmails, projectId }),
+        body: JSON.stringify({ title: t, meetingDate: md, attendeeEmails: ae, projectId }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -630,6 +686,83 @@ export default function AgendaClient({ initialAgendas, recipients, projects }: P
           .no-print { display: none !important; }
         }
       `}</style>
+
+      {/* Outlook meeting picker */}
+      <div className="no-print mb-10">
+        <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+          Pick a meeting from your calendar
+        </h2>
+
+        {hasOutlook ? (
+          outlookLoading ? (
+            <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
+              Loading your calendar…
+            </p>
+          ) : outlookError || outlookEvents.length === 0 ? (
+            <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
+              {outlookError ?? 'No upcoming meetings found in the next 14 days.'}
+            </p>
+          ) : (
+            <div className="mt-3 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              {outlookEvents.map((event) => {
+                const recipientEmails = new Set(recipients.map((r) => r.email))
+                const matchedAttendees = event.attendees.filter((a) => recipientEmails.has(a))
+
+                return (
+                  <div
+                    key={event.id}
+                    className="flex items-center justify-between gap-4 px-4 py-3"
+                    style={{ borderBottom: '1px solid var(--border)' }}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                        {event.subject}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {fmtMeetingTime(event.start.dateTime)}
+                        {event.attendees.length > 0 && (
+                          <span style={{ color: 'var(--text-faint)' }}>
+                            {' '}· {event.attendees.length} attendee{event.attendees.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={generating}
+                      onClick={() => {
+                        const dt = toDatetimeLocal(event.start.dateTime)
+                        setTitle(event.subject)
+                        setMeetingDate(dt)
+                        setAttendeeEmails(matchedAttendees)
+                        handleGenerate({
+                          title: event.subject,
+                          meetingDate: dt,
+                          attendeeEmails: matchedAttendees,
+                        })
+                        setTimeout(
+                          () => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                          100
+                        )
+                      }}
+                      className="shrink-0 btn-green text-xs px-3 py-1.5 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Generate agenda →
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        ) : (
+          <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>
+            <a href="/settings" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>
+              Connect your Outlook calendar in Settings
+            </a>{' '}
+            to pick meetings directly from your diary →
+          </p>
+        )}
+      </div>
 
       {/* Generate form */}
       <div className="no-print mb-10">
@@ -774,7 +907,7 @@ export default function AgendaClient({ initialAgendas, recipients, projects }: P
           {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
 
           <button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate()}
             disabled={generating || !title.trim() || !meetingDate}
             className="btn-green mt-5 px-5 py-2.5 text-sm font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
           >

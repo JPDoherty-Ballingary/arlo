@@ -6,7 +6,11 @@ import SettingsForm from './settings-form'
 
 export const metadata: Metadata = { title: 'Settings' }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ outlook?: string }>
+}) {
   const supabase = await createClient()
 
   const {
@@ -15,11 +19,16 @@ export default async function SettingsPage() {
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name, default_frequency_hours, default_urgency')
-    .eq('id', user.id)
-    .maybeSingle()
+  const [{ data: profile }, params] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select(
+        'display_name, default_frequency_hours, default_urgency, microsoft_access_token, microsoft_email'
+      )
+      .eq('id', user.id)
+      .maybeSingle(),
+    searchParams,
+  ])
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -34,6 +43,7 @@ export default async function SettingsPage() {
           userId={user.id}
           userEmail={user.email ?? ''}
           profile={profile}
+          outlookJustConnected={params.outlook === 'connected'}
         />
       </main>
     </div>
