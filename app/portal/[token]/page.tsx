@@ -167,9 +167,15 @@ export default async function PortalTokenPage({
         <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
           Hi {recipientName}
         </h1>
-        <p className="text-sm mb-10" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
           Here&apos;s what&apos;s outstanding for you across all your Arlo accounts.
         </p>
+
+        {tasks && tasks.length > 0 && (
+          <div className="mb-10">
+            <PortalPrioritiseButton token={token} />
+          </div>
+        )}
 
         {!tasks || tasks.length === 0 ? (
           <div
@@ -262,13 +268,6 @@ export default async function PortalTokenPage({
                 </div>
               )
             })}
-          </div>
-        )}
-
-        {/* Prioritise button — only shown when there are active tasks */}
-        {tasks && tasks.length > 0 && (
-          <div className="mb-10">
-            <PortalPrioritiseButton token={token} />
           </div>
         )}
 

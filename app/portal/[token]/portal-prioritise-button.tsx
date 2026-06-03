@@ -41,25 +41,20 @@ export default function PortalPrioritiseButton({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null)
   const [skipOpen, setSkipOpen] = useState(false)
 
-  // Add/remove highlight class on matching task cards
   useEffect(() => {
     if (status !== 'done' || !result) {
-      document.querySelectorAll(`[data-portal-task-id]`).forEach((el) => {
+      document.querySelectorAll('[data-portal-task-id]').forEach((el) => {
         el.classList.remove(HIGHLIGHT_CLASS)
       })
       return
     }
-    const highlightedIds = new Set(
-      result.actions.map((a) => a.task_id).filter(Boolean)
-    )
-    document.querySelectorAll(`[data-portal-task-id]`).forEach((el) => {
+    const highlightedIds = new Set(result.actions.map((a) => a.task_id).filter(Boolean))
+    document.querySelectorAll('[data-portal-task-id]').forEach((el) => {
       const id = el.getAttribute('data-portal-task-id')
-      if (id && highlightedIds.has(id)) {
-        el.classList.add(HIGHLIGHT_CLASS)
-      }
+      if (id && highlightedIds.has(id)) el.classList.add(HIGHLIGHT_CLASS)
     })
     return () => {
-      document.querySelectorAll(`[data-portal-task-id]`).forEach((el) => {
+      document.querySelectorAll('[data-portal-task-id]').forEach((el) => {
         el.classList.remove(HIGHLIGHT_CLASS)
       })
     }
@@ -105,29 +100,42 @@ export default function PortalPrioritiseButton({ token }: { token: string }) {
         }
       `}</style>
 
-      {/* Banner row */}
+      {/* Card */}
       <div
-        className="rounded-lg px-5 py-4 flex flex-wrap items-center gap-3"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        className="rounded-2xl flex flex-col items-center text-center px-8 py-10"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10)',
+        }}
       >
+        <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: 'var(--text-faint)' }}>
+          Arlo
+        </p>
+
         <button
           onClick={handleClick}
           disabled={status === 'loading'}
-          className="btn-green px-5 py-2 rounded-md text-sm font-semibold disabled:opacity-60 shrink-0"
+          className="btn-green px-8 py-3 rounded-xl text-base font-semibold disabled:opacity-60 mb-6"
+          style={{ boxShadow: '0 2px 12px rgba(34,212,95,0.25)' }}
         >
-          {status === 'loading' ? 'Arlo is thinking…' : 'What should I do right now? →'}
+          {status === 'loading' ? 'Thinking…' : 'What should I do right now?'}
         </button>
 
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap justify-center">
           {TIME_OPTIONS.map((opt) => (
             <button
               key={opt.minutes}
               type="button"
               onClick={() => setSelectedMinutes(opt.minutes)}
-              className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+              className="px-4 py-1.5 rounded-full text-xs font-medium transition-colors"
               style={
                 selectedMinutes === opt.minutes
-                  ? { background: 'var(--text-primary)', color: 'var(--bg)' }
+                  ? {
+                      background: 'var(--text-primary)',
+                      color: 'var(--bg)',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                    }
                   : { background: 'var(--border)', color: 'var(--text-muted)' }
               }
             >
@@ -137,7 +145,7 @@ export default function PortalPrioritiseButton({ token }: { token: string }) {
         </div>
 
         {error && (
-          <p className="text-xs text-red-400 w-full -mt-1">{error}</p>
+          <p className="text-xs text-red-400 mt-4">{error}</p>
         )}
       </div>
 
@@ -149,11 +157,12 @@ export default function PortalPrioritiseButton({ token }: { token: string }) {
           onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}
         >
           <div
-            className="relative w-full max-w-lg rounded-xl flex flex-col overflow-hidden"
+            className="relative w-full max-w-lg rounded-2xl flex flex-col overflow-hidden"
             style={{
               background: 'var(--bg)',
               border: '1px solid var(--border)',
               maxHeight: '90vh',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
             }}
           >
             {/* Header */}
@@ -179,8 +188,12 @@ export default function PortalPrioritiseButton({ token }: { token: string }) {
                   return (
                     <div
                       key={i}
-                      className="rounded-lg p-4"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      className="rounded-xl p-4"
+                      style={{
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                      }}
                     >
                       <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                         {action.action}
@@ -190,13 +203,13 @@ export default function PortalPrioritiseButton({ token }: { token: string }) {
                       </p>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className="text-xs px-2 py-0.5 rounded font-medium"
+                          className="text-xs px-2 py-0.5 rounded-full font-medium"
                           style={{ background: typeStyle.bg, color: typeStyle.color }}
                         >
                           {typeStyle.label}
                         </span>
                         <span
-                          className="text-xs px-2 py-0.5 rounded font-medium"
+                          className="text-xs px-2 py-0.5 rounded-full font-medium"
                           style={{ background: 'var(--border)', color: 'var(--text-faint)' }}
                         >
                           ~{action.estimated_minutes} min
@@ -236,7 +249,7 @@ export default function PortalPrioritiseButton({ token }: { token: string }) {
             <div className="px-6 py-4" style={{ borderTop: '1px solid var(--border)' }}>
               <button
                 onClick={handleClose}
-                className="btn-green w-full py-2.5 rounded-md text-sm font-semibold"
+                className="btn-green w-full py-2.5 rounded-xl text-sm font-semibold"
               >
                 Got it
               </button>
