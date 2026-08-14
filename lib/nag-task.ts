@@ -51,7 +51,7 @@ function buildEmail(params: { taskTitle: string; body: string; doneLink: string;
     .replace('{{OWNER_NAME}}', escapeHtml(params.ownerName))
 }
 
-function ownerFirstName(email: string): string {
+export function ownerFirstName(email: string): string {
   const local = email.split('@')[0]
   const part = local.split(/[._]/)[0].replace(/\d+/g, '')
   return part.charAt(0).toUpperCase() + part.slice(1) || 'there'

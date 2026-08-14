@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import Logo from '@/app/components/logo'
 
-type State = 'idle' | 'loading' | 'success' | 'not_found' | 'error'
+type State = 'idle' | 'loading' | 'success' | 'error'
 
 export default function PortalPage() {
   const [email, setEmail] = useState('')
   const [state, setState] = useState<State>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -21,18 +20,11 @@ export default function PortalPage() {
       body: JSON.stringify({ email: email.trim() }),
     })
 
-    if (res.ok) {
-      setState('success')
-      return
-    }
-
-    const data = await res.json()
-    if (res.status === 404) {
-      setErrorMsg(data.error)
-      setState('not_found')
-    } else {
-      setState('error')
-    }
+    // The API always returns a generic { ok: true } for any well-formed
+    // request — whether or not the email belongs to a known recipient —
+    // so this can't be used to enumerate accounts. Only a genuine request
+    // failure (bad JSON, 500, etc.) falls through to the error state.
+    setState(res.ok ? 'success' : 'error')
   }
 
   return (
@@ -53,8 +45,9 @@ export default function PortalPage() {
                 Check your inbox
               </p>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                We&apos;ve sent a login link to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>.
-                It expires in 7 days.
+                If <strong style={{ color: 'var(--text-primary)' }}>{email}</strong> has been
+                assigned tasks through Arlo, we&apos;ve sent a login link and deactivated any
+                older one. The new link expires in 7 days.
               </p>
             </div>
           ) : (
@@ -77,11 +70,9 @@ export default function PortalPage() {
                   autoComplete="email"
                 />
 
-                {(state === 'not_found' || state === 'error') && (
+                {state === 'error' && (
                   <p className="text-sm" style={{ color: '#ef4444', lineHeight: 1.5 }}>
-                    {state === 'not_found'
-                      ? errorMsg
-                      : 'Something went wrong. Please try again.'}
+                    Something went wrong. Please try again.
                   </p>
                 )}
 

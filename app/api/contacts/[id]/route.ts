@@ -22,12 +22,13 @@ export async function PATCH(
   if (!existing) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
 
   const body = await request.json()
-  const { name, email, notes } = body
+  const { name, email, notes, digest_mode } = body
 
   const updates: Record<string, unknown> = {}
   if (name !== undefined) updates.name = name?.trim() || null
   if (notes !== undefined) updates.notes = notes?.trim() || null
   if (email?.trim()) updates.email = email.trim().toLowerCase()
+  if (digest_mode !== undefined) updates.digest_mode = Boolean(digest_mode)
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })

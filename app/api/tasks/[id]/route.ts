@@ -30,6 +30,21 @@ export async function PATCH(
   const body = await request.json()
   const { status } = body
 
+  // ── Claim response ────────────────────────────────────────────────────────
+  // Recipient claimed the task is done via their /done/[token] link; owner is
+  // rejecting that claim, so just clear the flag and keep nagging as normal.
+  if (body.claim_action === 'reject') {
+    const { data: updatedTask, error: updateError } = await supabase
+      .from('tasks')
+      .update({ owner_notified_of_claim: false })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+    return NextResponse.json(updatedTask)
+  }
+
   // ── Context append ────────────────────────────────────────────────────────
   if (body.append_context !== undefined) {
     const note = (body.append_context as string).trim()
@@ -83,7 +98,7 @@ export async function PATCH(
   if (status === 'done') {
     const { data: updatedTask, error: updateError } = await supabase
       .from('tasks')
-      .update({ status: 'done', done_at: new Date().toISOString() })
+      .update({ status: 'done', done_at: new Date().toISOString(), owner_notified_of_claim: false })
       .eq('id', id)
       .select()
       .single()

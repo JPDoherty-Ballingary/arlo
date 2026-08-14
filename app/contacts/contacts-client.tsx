@@ -15,6 +15,7 @@ type Contact = {
   intro_email_sent_at: string | null
   intro_email_scheduled_at: string | null
   active_task_count: number
+  digest_mode: boolean
 }
 
 type Props = {
@@ -129,17 +130,31 @@ function ContactCard({
   onEdit,
   onIntroduce,
   onEditScheduled,
+  onToggleDigest,
 }: {
   contact: Contact
   onEdit: () => void
   onIntroduce: () => void
   onEditScheduled: () => void
+  onToggleDigest: () => void
 }) {
   const hasScore = contact.total_tasks > 0 && contact.reliability_score !== null
   const isScheduledPending =
     !contact.intro_email_sent &&
     !!contact.intro_email_scheduled_at &&
     new Date(contact.intro_email_scheduled_at) > new Date()
+
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  async function handleResendAccess() {
+    setResendStatus('sending')
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/resend-access`, { method: 'POST' })
+      setResendStatus(res.ok ? 'sent' : 'error')
+    } catch {
+      setResendStatus('error')
+    }
+  }
 
   return (
     <div
@@ -182,6 +197,20 @@ function ContactCard({
           ? 'No active tasks'
           : `${contact.active_task_count} active task${contact.active_task_count === 1 ? '' : 's'}`}
       </p>
+
+      {/* Digest mode toggle */}
+      <button
+        onClick={onToggleDigest}
+        title="When on, this contact gets one daily summary email instead of individual reminders per task"
+        className="self-start text-xs px-2.5 py-1 rounded-full font-medium transition-colors"
+        style={
+          contact.digest_mode
+            ? { background: 'var(--claim-badge-bg)', color: 'var(--claim-badge-color)', border: '1px solid #22d45f' }
+            : { background: 'transparent', color: 'var(--text-faint)', border: '1px solid var(--border)' }
+        }
+      >
+        {contact.digest_mode ? '✓ Daily digest' : 'Daily digest off'}
+      </button>
 
       {/* Action buttons */}
       <div className="flex items-center gap-2 flex-wrap pt-1">
@@ -226,6 +255,25 @@ function ContactCard({
           }}
         >
           Edit
+        </button>
+        <button
+          onClick={handleResendAccess}
+          disabled={resendStatus === 'sending'}
+          title="Sends a fresh portal login link and deactivates any previous one"
+          className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors disabled:opacity-50"
+          style={{
+            border: '1px solid var(--border)',
+            color: resendStatus === 'sent' ? '#22d45f' : resendStatus === 'error' ? '#ef4444' : 'var(--text-muted)',
+            background: 'transparent',
+          }}
+        >
+          {resendStatus === 'sending'
+            ? 'Sending…'
+            : resendStatus === 'sent'
+              ? 'Link sent ✓'
+              : resendStatus === 'error'
+                ? 'Failed — retry'
+                : 'Resend access link'}
         </button>
       </div>
     </div>
@@ -721,6 +769,22 @@ export default function ContactsClient({ initialContacts, ownerDisplayName }: Pr
     setEditContact(null)
   }
 
+  async function handleToggleDigest(contact: Contact) {
+    const nextValue = !contact.digest_mode
+    setContacts((prev) => prev.map((c) => (c.id === contact.id ? { ...c, digest_mode: nextValue } : c)))
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ digest_mode: nextValue }),
+      })
+      if (!res.ok) throw new Error('Failed to update')
+    } catch {
+      // Revert on failure
+      setContacts((prev) => prev.map((c) => (c.id === contact.id ? { ...c, digest_mode: !nextValue } : c)))
+    }
+  }
+
   function markIntroSent(contactId: string, sentAt: string) {
     setContacts((prev) =>
       prev.map((c) =>
@@ -782,6 +846,7 @@ export default function ContactsClient({ initialContacts, ownerDisplayName }: Pr
                 onEdit={() => setEditContact(contact)}
                 onIntroduce={() => setIntroduceContact(contact)}
                 onEditScheduled={() => setEditScheduledContact(contact)}
+                onToggleDigest={() => handleToggleDigest(contact)}
               />
             ))}
           </div>

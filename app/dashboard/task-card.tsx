@@ -92,12 +92,30 @@ export default function TaskCard({ task, project }: { task: Task; project?: Proj
 
   async function updateStatus(status: 'done' | 'paused' | 'active') {
     setPending(true)
-    await fetch(`/api/tasks/${task.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    })
-    router.refresh()
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      router.refresh()
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function rejectClaim() {
+    setPending(true)
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claim_action: 'reject' }),
+      })
+      router.refresh()
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
@@ -133,7 +151,7 @@ export default function TaskCard({ task, project }: { task: Task; project?: Proj
                   border: '1px solid #22d45f',
                 }}
               >
-                Claiming done — confirm?
+                Claiming done
               </span>
             )}
             {noteCount > 0 && (
@@ -192,6 +210,33 @@ export default function TaskCard({ task, project }: { task: Task; project?: Proj
 
       {/* Action buttons — stop propagation so clicks don't navigate */}
       <div className="flex flex-col gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+        {task.owner_notified_of_claim && (
+          <div
+            className="rounded-md px-3 py-2 flex items-center justify-between gap-2 flex-wrap"
+            style={{ background: 'var(--claim-badge-bg)', border: '1px solid #22d45f' }}
+          >
+            <span className="text-xs font-medium animate-pulse" style={{ color: 'var(--claim-badge-color)' }}>
+              {task.recipient_name || task.recipient_email} says this is done
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => updateStatus('done')}
+                disabled={pending}
+                className="btn-green px-3 py-1 rounded-md text-xs font-semibold disabled:opacity-40"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={rejectClaim}
+                disabled={pending}
+                className="px-3 py-1 rounded-md text-xs font-semibold"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'transparent' }}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2">
           <button
             onClick={() => updateStatus('done')}

@@ -104,6 +104,12 @@ export default function ForgotPasswordPage() {
             Back to log in
           </Link>
         </p>
+        <p className="mt-2 text-center text-xs" style={{ color: 'var(--text-faint)' }}>
+          Been assigned tasks through Arlo instead of using it yourself?{' '}
+          <Link href="/portal" className="transition-colors hover:underline" style={{ color: '#22d45f' }}>
+            Access your portal
+          </Link>
+        </p>
       </div>
     </main>
   )

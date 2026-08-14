@@ -17,8 +17,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: tasksError.message }, { status: 500 })
   }
 
+  // Recipients in digest mode get one batched email a day (see
+  // /api/cron/nag-digest) instead of individual per-task nags here.
+  const { data: digestRecipients } = await supabaseAdmin
+    .from('recipients')
+    .select('owner_id, email')
+    .eq('digest_mode', true)
+
+  const digestKeys = new Set((digestRecipients ?? []).map((r) => `${r.owner_id}:${r.email}`))
+
   const now = Date.now()
   const dueTasks = (allActiveTasks || []).filter((task) => {
+    if (digestKeys.has(`${task.owner_id}:${task.recipient_email}`)) return false
     if (task.scheduled_start_at && new Date(task.scheduled_start_at).getTime() > now) return false
     if (!task.last_nagged_at) return true
     const nextNagAt = new Date(task.last_nagged_at).getTime() + task.frequency_hours * 3600 * 1000
