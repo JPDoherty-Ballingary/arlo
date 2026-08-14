@@ -3,6 +3,53 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { resend } from '@/lib/resend'
 import { EMAIL_LOGO_SVG } from '@/lib/email-logo'
 
+const SESSION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000
+
+async function createPortalSession(params: {
+  recipientId: string
+  ownerId: string
+  email: string
+}): Promise<string> {
+  const token = randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + SESSION_LIFETIME_MS).toISOString()
+
+  await supabaseAdmin.from('recipient_sessions').insert({
+    email: params.email,
+    recipient_id: params.recipientId,
+    owner_id: params.ownerId,
+    token,
+    expires_at: expiresAt,
+  })
+
+  return token
+}
+
+/**
+ * Returns a working portal link for a recipient, for stapling into routine
+ * emails (nags, digests) rather than an explicit "send me a link" action.
+ * Reuses their current link if it's still valid instead of minting a new
+ * one — unlike issuePortalAccessLink below, this never revokes anything,
+ * so a link a recipient already has open keeps working. Only mints a fresh
+ * token once the existing one has actually expired.
+ */
+export async function getOrCreatePortalLink(params: {
+  recipientId: string
+  ownerId: string
+  email: string
+}): Promise<string> {
+  const { data: existing } = await supabaseAdmin
+    .from('recipient_sessions')
+    .select('token')
+    .eq('recipient_id', params.recipientId)
+    .gt('expires_at', new Date().toISOString())
+    .order('expires_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const token = existing?.token ?? (await createPortalSession(params))
+  return `${process.env.NEXT_PUBLIC_APP_URL}/portal/${token}`
+}
+
 /**
  * Issues a fresh portal access link for a recipient and emails it to them.
  *

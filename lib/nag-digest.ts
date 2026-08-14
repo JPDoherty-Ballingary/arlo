@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { resend } from '@/lib/resend'
 import { EMAIL_LOGO_SVG } from '@/lib/email-logo'
 import { ownerFirstName } from '@/lib/nag-task'
+import { getOrCreatePortalLink } from '@/lib/portal-access'
 
 type DigestTask = {
   id: string
@@ -88,6 +89,11 @@ export async function sendDailyDigest(recipient: {
   const ownerEmail = ownerData.user?.email || ''
   const ownerName = ownerFirstName(ownerEmail)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  const portalLink = await getOrCreatePortalLink({
+    recipientId: recipient.id,
+    ownerId: recipient.owner_id,
+    email: recipient.email,
+  })
 
   const html = `<!DOCTYPE html>
 <html>
@@ -99,11 +105,12 @@ export async function sendDailyDigest(recipient: {
   <div style="background:#ffffff;padding:32px 40px;border-bottom:2px solid #22d45f;text-align:center;">${EMAIL_LOGO_SVG}</div>
   <div style="background:#ffffff;padding:36px 40px;">
     <p style="color:#111827;font-size:15px;line-height:1.7;margin:0 0 4px;">Your daily catch-up, on behalf of ${escapeHtml(ownerName)}:</p>
-    <p style="color:#9ca3af;font-size:13px;margin:0 0 8px;">${dueTasks.length} outstanding task${dueTasks.length === 1 ? '' : 's'}</p>
+    <p style="color:#9ca3af;font-size:13px;margin:0 0 20px;">${dueTasks.length} outstanding task${dueTasks.length === 1 ? '' : 's'}</p>
+    <a href="${portalLink}" style="display:inline-block;background:#22d45f;color:#000000;padding:12px 24px;text-decoration:none;font-weight:bold;font-size:14px;border-radius:6px;">Open your portal &rarr;</a>
     ${dueTasks.map((t) => buildTaskRow(t, appUrl)).join('')}
   </div>
   <div style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
-    <p style="color:#9ca3af;font-size:11px;margin:0;line-height:1.6;">Sent by Arlo on behalf of ${escapeHtml(ownerName)}. You're on the daily summary — one email a day instead of one per task. <a href="${appUrl}/portal" style="color:#9ca3af;">View everything in your portal</a>.</p>
+    <p style="color:#9ca3af;font-size:11px;margin:0;line-height:1.6;">Sent by Arlo on behalf of ${escapeHtml(ownerName)}. You're on the daily summary — one email a day instead of one per task.</p>
   </div>
 </div>
 </body>

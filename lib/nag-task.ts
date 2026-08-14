@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic } from '@/lib/anthropic'
 import { resend } from '@/lib/resend'
 import { EMAIL_LOGO_SVG } from '@/lib/email-logo'
+import { getOrCreatePortalLink } from '@/lib/portal-access'
 
 const EMAIL_TEMPLATE = `<!DOCTYPE html>
 <html>
@@ -15,6 +16,8 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
     .body-text { color: #374151; line-height: 1.7; white-space: pre-wrap; font-size: 15px; }
     .buttons { margin: 32px 0 0; }
     .btn-done { display: inline-block; background: #22d45f; color: #000000; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 15px; border-radius: 6px; }
+    .portal-link { margin: 18px 0 0; }
+    .portal-link a { color: #22d45f; font-size: 13px; font-weight: 600; text-decoration: none; }
     .footer { background: #f9fafb; padding: 20px 40px; border-top: 1px solid #e5e7eb; }
     .footer p { color: #9ca3af; font-size: 11px; margin: 0; line-height: 1.6; }
     .unsubscribe { color: #9ca3af; font-size: 11px; }
@@ -29,6 +32,7 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
       <div class="buttons">
         <a href="{{DONE_LINK}}" class="btn-done">I've completed this →</a>
       </div>
+      <p class="portal-link"><a href="{{PORTAL_LINK}}">View everything outstanding in your portal →</a></p>
     </div>
     <div class="footer">
       <p>This reminder was sent by ARLO on behalf of {{OWNER_NAME}}.</p>
@@ -42,12 +46,13 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-function buildEmail(params: { taskTitle: string; body: string; doneLink: string; unsubscribeLink: string; ownerName: string }): string {
+function buildEmail(params: { taskTitle: string; body: string; doneLink: string; unsubscribeLink: string; portalLink: string; ownerName: string }): string {
   return EMAIL_TEMPLATE
     .replace('{{TASK_TITLE}}', escapeHtml(params.taskTitle))
     .replace('{{BODY}}', escapeHtml(params.body))
     .replace('{{DONE_LINK}}', params.doneLink)
     .replace('{{UNSUBSCRIBE_LINK}}', params.unsubscribeLink)
+    .replace('{{PORTAL_LINK}}', params.portalLink)
     .replace('{{OWNER_NAME}}', escapeHtml(params.ownerName))
 }
 
@@ -78,7 +83,7 @@ export async function nagTask(task: Task): Promise<NagResult> {
 
   const { data: recipient } = await supabaseAdmin
     .from('recipients')
-    .select('reliability_score')
+    .select('id, reliability_score')
     .eq('owner_id', task.owner_id)
     .eq('email', task.recipient_email)
     .maybeSingle()
@@ -158,7 +163,11 @@ Respond ONLY in this exact JSON format with no other text:
       .replace('{{DONE_LINK}}', doneLink)
       .replace('{{UNSUBSCRIBE_LINK}}', unsubscribeLink)
 
-    const html = buildEmail({ taskTitle: task.title, body: emailBody, doneLink, unsubscribeLink, ownerName: firstName })
+    const portalLink = recipient
+      ? await getOrCreatePortalLink({ recipientId: recipient.id, ownerId: task.owner_id, email: task.recipient_email })
+      : `${appUrl}/portal`
+
+    const html = buildEmail({ taskTitle: task.title, body: emailBody, doneLink, unsubscribeLink, portalLink, ownerName: firstName })
 
     await resend.emails.send({
       from: 'Arlo <arlo@agent-arlo.com>',
