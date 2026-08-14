@@ -50,7 +50,7 @@ export async function POST(
           <div style="padding:36px 40px;">
             <p style="color:#111827;font-size:15px;line-height:1.7;margin:0 0 12px;">Hey ${firstName},</p>
             <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;"><strong style="color:#111827;">${recipientName}</strong> is claiming that <strong style="color:#111827;">&ldquo;${task.title}&rdquo;</strong> is done.</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="display:inline-block;background:#22d45f;color:#000;padding:12px 24px;text-decoration:none;font-weight:bold;border-radius:6px;">Go to dashboard →</a>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="display:inline-block;background:#22d45f;color:#ffffff;padding:12px 24px;text-decoration:none;font-weight:bold;border-radius:6px;">Go to dashboard →</a>
           </div>
           <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;"><p style="color:#9ca3af;font-size:11px;margin:0;">Sent by ARLO.</p></div>
         </div>

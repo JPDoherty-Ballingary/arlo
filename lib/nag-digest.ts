@@ -9,7 +9,6 @@ type DigestTask = {
   title: string
   deadline: string | null
   nag_count: number
-  done_token: string
   urgency: 'low' | 'medium' | 'high'
   scheduled_start_at: string | null
 }
@@ -34,16 +33,17 @@ function deadlineLabel(deadline: string | null): { text: string; overdue: boolea
   return { text: overdue ? `${formatted} — ${daysOverdue}d overdue` : `Due ${formatted}`, overdue }
 }
 
-function buildTaskRow(task: DigestTask, appUrl: string | undefined): string {
+// Informational only — no per-task link. The one "View in Portal" button
+// above is the single way in; everything (including marking done) happens
+// there once he's logged in, same reasoning as the individual nag email.
+function buildTaskRow(task: DigestTask): string {
   const deadline = deadlineLabel(task.deadline)
-  const doneLink = `${appUrl}/done/${task.done_token}`
   return `
     <div style="padding:16px 0;border-top:1px solid #e5e7eb;">
       <p style="color:#111827;font-size:15px;font-weight:bold;margin:0 0 6px;">${escapeHtml(task.title)}</p>
-      <p style="color:#6b7280;font-size:13px;margin:0 0 10px;">
+      <p style="color:#6b7280;font-size:13px;margin:0;">
         ${deadline ? `<span style="color:${deadline.overdue ? '#dc2626' : '#6b7280'};">${deadline.text}</span> · ` : ''}${task.nag_count === 0 ? 'Not yet reminded' : `Reminded ${task.nag_count} time${task.nag_count === 1 ? '' : 's'} before`}
       </p>
-      <a href="${doneLink}" style="color:#22d45f;font-size:13px;font-weight:bold;text-decoration:none;">I've completed this →</a>
     </div>`
 }
 
@@ -63,7 +63,7 @@ export async function sendDailyDigest(recipient: {
 
   const { data: tasks } = await supabaseAdmin
     .from('tasks')
-    .select('id, title, deadline, nag_count, done_token, urgency, scheduled_start_at')
+    .select('id, title, deadline, nag_count, urgency, scheduled_start_at')
     .eq('owner_id', recipient.owner_id)
     .eq('recipient_email', recipient.email)
     .eq('status', 'active')
@@ -88,7 +88,6 @@ export async function sendDailyDigest(recipient: {
   const { data: ownerData } = await supabaseAdmin.auth.admin.getUserById(recipient.owner_id)
   const ownerEmail = ownerData.user?.email || ''
   const ownerName = ownerFirstName(ownerEmail)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
   const portalLink = await getOrCreatePortalLink({
     recipientId: recipient.id,
     ownerId: recipient.owner_id,
@@ -106,8 +105,8 @@ export async function sendDailyDigest(recipient: {
   <div style="background:#ffffff;padding:36px 40px;">
     <p style="color:#111827;font-size:15px;line-height:1.7;margin:0 0 4px;">Your daily catch-up, on behalf of ${escapeHtml(ownerName)}:</p>
     <p style="color:#9ca3af;font-size:13px;margin:0 0 20px;">${dueTasks.length} outstanding task${dueTasks.length === 1 ? '' : 's'}</p>
-    <a href="${portalLink}" style="display:inline-block;background:#22d45f;color:#000000;padding:12px 24px;text-decoration:none;font-weight:bold;font-size:14px;border-radius:6px;">Open your portal &rarr;</a>
-    ${dueTasks.map((t) => buildTaskRow(t, appUrl)).join('')}
+    <a href="${portalLink}" style="display:inline-block;background:#22d45f;color:#ffffff;padding:12px 24px;text-decoration:none;font-weight:bold;font-size:14px;border-radius:6px;">View in Portal &rarr;</a>
+    ${dueTasks.map((t) => buildTaskRow(t)).join('')}
   </div>
   <div style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
     <p style="color:#9ca3af;font-size:11px;margin:0;line-height:1.6;">Sent by Arlo on behalf of ${escapeHtml(ownerName)}. You're on the daily summary — one email a day instead of one per task.</p>

@@ -4,41 +4,29 @@ import { resend } from '@/lib/resend'
 import { EMAIL_LOGO_SVG } from '@/lib/email-logo'
 import { getOrCreatePortalLink } from '@/lib/portal-access'
 
+// Styles are inline throughout (not a <style> block) because Gmail and
+// several other clients strip <head><style> blocks and class attributes,
+// which silently drops button styling back to a default blue underlined
+// link. Inline styles on the tag itself are the reliable way to keep the
+// green button green with white text everywhere it's actually opened.
 const EMAIL_TEMPLATE = `<!DOCTYPE html>
 <html>
-<head>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 0 auto; background: #ffffff; }
-    .header { background: #ffffff; padding: 32px 40px; border-bottom: 2px solid #22d45f; text-align: center; }
-    .body { background: #ffffff; padding: 36px 40px; }
-    .task-title { color: #111827; font-size: 20px; font-weight: bold; margin: 0 0 16px; }
-    .body-text { color: #374151; line-height: 1.7; white-space: pre-wrap; font-size: 15px; }
-    .buttons { margin: 32px 0 0; }
-    .btn-done { display: inline-block; background: #22d45f; color: #000000; padding: 14px 28px; text-decoration: none; font-weight: bold; font-size: 15px; border-radius: 6px; }
-    .portal-link { margin: 18px 0 0; }
-    .portal-link a { color: #22d45f; font-size: 13px; font-weight: 600; text-decoration: none; }
-    .footer { background: #f9fafb; padding: 20px 40px; border-top: 1px solid #e5e7eb; }
-    .footer p { color: #9ca3af; font-size: 11px; margin: 0; line-height: 1.6; }
-    .unsubscribe { color: #9ca3af; font-size: 11px; }
-  </style>
+<head><meta charset="utf-8">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f3f4f6;margin:0;padding:0;}</style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">${EMAIL_LOGO_SVG}</div>
-    <div class="body">
-      <p class="task-title">{{TASK_TITLE}}</p>
-      <p class="body-text">{{BODY}}</p>
-      <div class="buttons">
-        <a href="{{DONE_LINK}}" class="btn-done">I've completed this →</a>
-      </div>
-      <p class="portal-link"><a href="{{PORTAL_LINK}}">View everything outstanding in your portal →</a></p>
-    </div>
-    <div class="footer">
-      <p>This reminder was sent by ARLO on behalf of {{OWNER_NAME}}.</p>
-      <p style="margin-top: 6px;"><a href="{{UNSUBSCRIBE_LINK}}" class="unsubscribe">Unsubscribe from these reminders</a></p>
-    </div>
+<div style="max-width:600px;margin:0 auto;background:#ffffff;">
+  <div style="background:#ffffff;padding:32px 40px;border-bottom:2px solid #22d45f;text-align:center;">${EMAIL_LOGO_SVG}</div>
+  <div style="background:#ffffff;padding:36px 40px;">
+    <p style="color:#111827;font-size:20px;font-weight:bold;margin:0 0 16px;">{{TASK_TITLE}}</p>
+    <p style="color:#374151;line-height:1.7;white-space:pre-wrap;font-size:15px;margin:0 0 28px;">{{BODY}}</p>
+    <a href="{{PORTAL_LINK}}" style="display:inline-block;background:#22d45f;color:#ffffff;padding:14px 28px;text-decoration:none;font-weight:bold;font-size:15px;border-radius:6px;">View in Portal &rarr;</a>
   </div>
+  <div style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
+    <p style="color:#9ca3af;font-size:11px;margin:0;line-height:1.6;">This reminder was sent by ARLO on behalf of {{OWNER_NAME}}.</p>
+    <p style="color:#9ca3af;font-size:11px;margin:6px 0 0;"><a href="{{UNSUBSCRIBE_LINK}}" style="color:#9ca3af;">Unsubscribe from these reminders</a></p>
+  </div>
+</div>
 </body>
 </html>`
 
@@ -46,11 +34,10 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-function buildEmail(params: { taskTitle: string; body: string; doneLink: string; unsubscribeLink: string; portalLink: string; ownerName: string }): string {
+function buildEmail(params: { taskTitle: string; body: string; unsubscribeLink: string; portalLink: string; ownerName: string }): string {
   return EMAIL_TEMPLATE
     .replace('{{TASK_TITLE}}', escapeHtml(params.taskTitle))
     .replace('{{BODY}}', escapeHtml(params.body))
-    .replace('{{DONE_LINK}}', params.doneLink)
     .replace('{{UNSUBSCRIBE_LINK}}', params.unsubscribeLink)
     .replace('{{PORTAL_LINK}}', params.portalLink)
     .replace('{{OWNER_NAME}}', escapeHtml(params.ownerName))
@@ -136,7 +123,7 @@ Respond ONLY in this exact JSON format with no other text:
   "action": "send_nag" or "send_escalation" or "notify_owner" or "pause",
   "tone": "friendly" or "firm" or "direct" or "urgent",
   "subject": "email subject line or null",
-  "body": "full plain text email body or null. Include {{DONE_LINK}} where the completion link should go and {{UNSUBSCRIBE_LINK}} where the unsubscribe link should go.",
+  "body": "full plain text email body or null. Just the reminder message itself — no links, no URLs, no sign-off or name at the end. The template adds a single 'View in Portal' button and the ARLO attribution automatically, so don't reference completing the task via a link or write a closing signature.",
   "reason": "one sentence explaining your decision"
 }`,
     }],
@@ -155,19 +142,17 @@ Respond ONLY in this exact JSON format with no other text:
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  const doneLink = `${appUrl}/done/${task.done_token}`
   const unsubscribeLink = `${appUrl}/unsubscribe/${task.done_token}`
 
   if (decision.action === 'send_nag' || decision.action === 'send_escalation') {
-    const emailBody = (decision.body || '')
-      .replace('{{DONE_LINK}}', doneLink)
-      .replace('{{UNSUBSCRIBE_LINK}}', unsubscribeLink)
+    // Defensive strip in case the model ignores the "no links/tokens" instruction.
+    const emailBody = (decision.body || '').replace(/\{\{[A-Z_]+\}\}/g, '').trim()
 
     const portalLink = recipient
       ? await getOrCreatePortalLink({ recipientId: recipient.id, ownerId: task.owner_id, email: task.recipient_email })
       : `${appUrl}/portal`
 
-    const html = buildEmail({ taskTitle: task.title, body: emailBody, doneLink, unsubscribeLink, portalLink, ownerName: firstName })
+    const html = buildEmail({ taskTitle: task.title, body: emailBody, unsubscribeLink, portalLink, ownerName: firstName })
 
     await resend.emails.send({
       from: 'Arlo <arlo@agent-arlo.com>',

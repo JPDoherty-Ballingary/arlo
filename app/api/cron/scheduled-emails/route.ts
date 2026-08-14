@@ -83,7 +83,7 @@ function agendaReminderEmail({
     <p style="color:#6b7280;font-size:14px;margin:0 0 24px;">${escapeHtml(meetingTimeLabel)}</p>
     ${bodyHtml}
     <div style="margin-top:32px;">
-      <a href="${agendaUrl}" style="display:inline-block;background:#22d45f;color:#000000;padding:12px 24px;text-decoration:none;font-weight:bold;font-size:14px;border-radius:6px;">View full agenda &rarr;</a>
+      <a href="${agendaUrl}" style="display:inline-block;background:#22d45f;color:#ffffff;padding:12px 24px;text-decoration:none;font-weight:bold;font-size:14px;border-radius:6px;">View full agenda &rarr;</a>
     </div>
   </div>
   <div style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
